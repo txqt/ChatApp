@@ -1,0 +1,40 @@
+﻿@page "/test-resource"
+@inject HttpClient Http
+@using System.Net.Http.Json
+
+<h3>Test Resource Server</h3>
+
+<button @onclick="CallSecureApi">Gọi API bảo vệ</button>
+<button @onclick="CallPublicApi">Gọi API công khai</button>
+
+<p>@message</p>
+
+@code {
+    private string message;
+
+    private async Task CallSecureApi()
+    {
+        try
+        {
+            var result = await Http.GetFromJsonAsync<object>("api/test/secure");
+            message = $"Dữ liệu bảo vệ: {System.Text.Json.JsonSerializer.Serialize(result)}";
+        }
+        catch (Exception ex)
+        {
+            message = $"Lỗi: {ex.Message}";
+        }
+    }
+
+    private async Task CallPublicApi()
+    {
+        try
+        {
+            var result = await Http.GetStringAsync("api/test/public");
+            message = $"Dữ liệu công khai: {result}";
+        }
+        catch (Exception ex)
+        {
+            message = $"Lỗi: {ex.Message}";
+        }
+    }
+}

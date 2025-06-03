@@ -1,0 +1,42 @@
+﻿@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@inherits LayoutComponentBase
+@inject SignOutSessionStateManager SignOutManager
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            <AuthorizeView>
+                <Authorized>
+                    <button class="btn btn-link nav-link" @onclick="BeginLogout">Logout</button>
+                </Authorized>
+                <NotAuthorized>
+                    <button class="btn btn-link nav-link" @onclick="BeginLogin">Login</button>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+        
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+@code {
+    // Khi click Login, sẽ redirect qua Auth0 để login
+    private void BeginLogin()
+    {
+        Navigation.NavigateTo("/authentication/login");
+    }
+    // Khi click Logout, sẽ đưa đến Auth0 logout rồi quay về logout-callback
+    private async Task BeginLogout()
+    {
+        await SignOutManager.SetSignOutState();
+        Navigation.NavigateTo("/authentication/logout");
+    }
+
+    [Inject]
+    public NavigationManager Navigation { get; set; }
+}
