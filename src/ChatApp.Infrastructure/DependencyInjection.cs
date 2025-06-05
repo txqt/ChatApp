@@ -1,10 +1,8 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using ChatApp.Application.Interfaces;
+using ChatApp.Infrastructure.Data;
+using ChatApp.Infrastructure.Services;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ChatApp.Infrastructure
 {
@@ -12,6 +10,8 @@ namespace ChatApp.Infrastructure
     {
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
+            services.AddScoped<IApplicationDbContext, ApplicationDbContext>();
+            services.AddScoped<IAuth0UserSyncService, Auth0UserSyncService>();
             return services;
         }
     }

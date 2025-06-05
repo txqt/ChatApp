@@ -1,0 +1,507 @@
+﻿@page "/chat"
+@using ChatApp.BlazorApp.Models
+@using ChatApp.BlazorApp.Services
+@using ChatApp.Domain.Enum
+@inject IChatService ChatService
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<!-- Component UI -->
+<div class="chat-container">
+    <div class="chat-sidebar">
+        <div class="sidebar-header">
+            <h3>Chats</h3>
+            <button class="btn btn-primary btn-sm" @onclick="ShowNewChatModal">
+                <i class="fas fa-plus"></i> New Chat
+            </button>
+        </div>
+        
+        <div class="chat-search">
+            <input type="text" class="form-control" placeholder="Search chats..." 
+                   @bind="searchQuery" @oninput="FilterChats" />
+        </div>
+
+        <div class="chat-list">
+            @if (filteredChats?.Any() == true)
+            {
+                @foreach (var chat in filteredChats)
+                {
+                    var otherUser = chat.ChatType == ChatType.Direct 
+                        ? chat.Members.FirstOrDefault(u => u.Id != currentUserId) 
+                        : null;
+                        
+                    <div class="chat-item @(selectedChat?.ChatId == chat.ChatId ? "active" : "")" 
+                         @onclick="() => SelectChat(chat)">
+                        <div class="chat-avatar">
+                            @if (!string.IsNullOrEmpty(chat.AvatarUrl))
+                            {
+                                <img src="@chat.AvatarUrl" alt="@chat.ChatName" />
+                            }
+                            else if (otherUser != null && !string.IsNullOrEmpty(otherUser.AvatarUrl))
+                            {
+                                <img src="@otherUser.AvatarUrl" alt="@otherUser.DisplayName" />
+                            }
+                            else
+                            {
+                                <div class="avatar-placeholder">
+                                    @(chat.ChatType == ChatType.Direct 
+                                        ? GetDirectChatInitial(chat) 
+                                        : chat.ChatName?.Substring(0, 1))
+                                </div>
+                            }
+                            
+                            @if (chat.ChatType == ChatType.Direct && otherUser?.IsOnline == true)
+                            {
+                                <div class="online-indicator"></div>
+                            }
+                        </div>
+                        <div class="chat-info">
+                            <div class="chat-name">
+                                <span>@(chat.ChatType == ChatType.Direct ? GetDirectChatName(chat) : chat.ChatName)</span>
+                                <span class="chat-time">@GetRelativeTime(chat.UpdatedAt)</span>
+                            </div>
+                            <div class="chat-last-message">
+                                @if (chat.LastMessage != null)
+                                {
+                                    if (chat.LastMessage.IsDeleted)
+                                    {
+                                        <span class="text-muted">Message deleted</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="last-message-sender">@chat.LastMessage.Sender.DisplayName: </span>
+                                        <span class="last-message-content">
+                                            @if (chat.LastMessage.MessageType == MessageType.Image)
+                                            {
+                                                <i class="fas fa-image">Image</i> 
+                                            }
+                                            else if (chat.LastMessage.MessageType == MessageType.File)
+                                            {
+                                                <i class="fas fa-file">File</i> 
+                                            }
+                                            else
+                                            {
+                                                @GetMessagePreview(chat.LastMessage)
+                                            }
+                                        </span>
+                                    }
+                                }
+                            </div>
+                            <div class="chat-meta">
+                                @if (chat.UnreadCount > 0)
+                                {
+                                    <div class="unread-badge">@chat.UnreadCount</div>
+                                }
+                                else
+                                {
+                                    <div></div>
+                                }
+                                @if (chat.IsMuted)
+                                {
+                                    <i class="fas fa-bell-slash text-muted"></i>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="no-chats">
+                    <p>No chats found</p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="chat-main">
+        @if (selectedChat != null)
+        {
+            <div class="chat-header">
+                <div class="chat-avatar">
+                    @if (!string.IsNullOrEmpty(selectedChat.AvatarUrl))
+                    {
+                        <img src="@selectedChat.AvatarUrl" alt="@selectedChat.ChatName" />
+                    }
+                    else
+                    {
+                        <div class="avatar-placeholder">
+                            @(selectedChat.ChatType == ChatType.Direct 
+                                ? GetDirectChatInitial(selectedChat) 
+                                : selectedChat.ChatName?.Substring(0, 1))
+                        </div>
+                    }
+                </div>
+                <div class="chat-title">
+                    <h4>@(selectedChat.ChatType == ChatType.Direct ? GetDirectChatName(selectedChat) : selectedChat.ChatName)</h4>
+                    <div class="chat-members">
+                        @if (selectedChat.ChatType == ChatType.Group)
+                        {
+                            <span>@selectedChat.Members.Count members</span>
+                        }
+                        else
+                        {
+                            var otherUser = selectedChat.Members.FirstOrDefault(u => u.Id != currentUserId);
+                            if (otherUser != null)
+                            {
+                                <span class="text-muted">
+                                    @if (otherUser.IsOnline)
+                                    {
+                                        <span class="online-indicator" style="position: static; margin-right: 5px;"></span>
+                                        <span>Online</span>
+                                    }
+                                    else if (otherUser.LastSeenAt.HasValue)
+                                    {
+                                        <span>Last seen @GetRelativeTime(otherUser.LastSeenAt.Value)</span>
+                                    }
+                                </span>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-messages" @ref="messagesDivRef">
+                @foreach (var msg in messages)
+                {
+                    <div class="message @(msg.IsFromCurrentUser ? "sent" : "received")">
+                        @if (msg.ReplyTo != null && !msg.ReplyTo.IsDeleted)
+                        {
+                            <div class="reply-message">
+                                <div class="reply-sender">@msg.ReplyTo.Sender.DisplayName</div>
+                                <div class="reply-content">
+                                    @if (msg.ReplyTo.MessageType == MessageType.Image)
+                                    {
+                                        <i class="fas fa-image">Image</i>
+                                    }
+                                    else if (msg.ReplyTo.MessageType == MessageType.File)
+                                    {
+                                        <i class="fas fa-file">File</i>
+                                    }
+                                    else
+                                    {
+                                        @GetMessagePreview(msg.ReplyTo)
+                                    }
+                                </div>
+                            </div>
+                        }
+                        
+                        <div class="message-content">
+                            @if (msg.IsDeleted)
+                            {
+                                <span class="text-muted"><i>Message deleted</i></span>
+                            }
+                            else if (msg.MediaFile != null)
+                            {
+                                <div class="message-media">
+                                    @if (msg.MessageType == MessageType.Image)
+                                    {
+                                        <img src="@msg.MediaFile.FilePath" alt="Uploaded image" />
+                                    }
+                                    else
+                                    {
+                                        <a href="@msg.MediaFile.FilePath" target="_blank" 
+                                           class="d-flex align-items-center">
+                                            <i class="fas fa-file me-2"></i>
+                                            @msg.MediaFile.OriginalFileName
+                                        </a>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                @msg.Content
+                            }
+                        </div>
+                        
+                        <div class="message-meta">
+                            <div class="timestamp">
+                                @msg.CreatedAt.ToString("HH:mm")
+                                <span class="full-time">@msg.CreatedAt.ToString("g")</span>
+                            </div>
+                            @if (msg.IsEdited && !msg.IsDeleted)
+                            {
+                                <span class="is-edited">(edited)</span>
+                            }
+                        </div>
+                    </div>
+                }
+                
+                @if (typingUsers.TryGetValue(selectedChat.ChatId, out var typingUser))
+                {
+                    <div class="typing-indicator">
+                        <div class="typing-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                        <div>@typingUser.DisplayName is typing...</div>
+                    </div>
+                }
+            </div>
+
+            <div class="chat-input">
+                <input type="text" class="form-control" placeholder="Type a message..."
+                       @bind="messageInput" 
+                       @oninput="OnTyping"
+                       @onkeydown="HandleKeyDown" />
+                <button class="send-button" @onclick="SendMessage" 
+                        disabled="@(string.IsNullOrWhiteSpace(messageInput))">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="no-chat-selected">
+                <p>Select a chat to start messaging</p>
+            </div>
+        }
+    </div>
+</div>
+
+@if (showNewChatModal)
+{
+    <div class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h5>Create New Chat</h5>
+                <button class="close" @onclick="() => showNewChatModal = false">×</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Group Name</label>
+                    <input class="form-control" @bind="newGroupName" />
+                </div>
+                <div class="form-group">
+                    <label>Member User IDs (comma separated)</label>
+                    <input class="form-control" @bind="newGroupMemberIds" />
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="() => showNewChatModal = false">Cancel</button>
+                <button class="btn btn-primary" @onclick="CreateGroupChat">Create</button>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    private List<ChatModel> allChats = new();
+    private List<ChatModel> filteredChats = new();
+    private ChatModel? selectedChat;
+    private List<MessageModel> messages = new();
+    private Dictionary<int, TypingUser> typingUsers = new();
+    private string searchQuery = string.Empty;
+    private string messageInput = string.Empty;
+    private int currentUserId = 1; // TODO: Load from session/state
+    private ElementReference messagesDivRef;
+    private Timer? typingTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        allChats = await ChatService.GetUserChatsAsync();
+        filteredChats = allChats;
+        ChatService.OnMessageReceived += OnMessageReceived;
+        ChatService.OnUserTyping += OnUserTypingReceived;
+        ChatService.OnUserStoppedTyping += OnUserStoppedTyping;
+        ChatService.OnMessageRead += OnMessageRead;
+        await ChatService.StartConnectionAsync();
+    }
+
+    private void FilterChats(ChangeEventArgs e)
+    {
+        searchQuery = e.Value?.ToString() ?? string.Empty;
+        filteredChats = allChats
+            .Where(c => (c.ChatName ?? "").Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                       c.Members.Any(m => m.DisplayName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)))
+            .OrderByDescending(c => c.UpdatedAt)
+            .ToList();
+    }
+
+    private async Task SelectChat(ChatModel chat)
+    {
+        selectedChat = chat;
+        messages = await ChatService.GetChatMessagesAsync(chat.ChatId);
+        await ScrollToBottom();
+        
+        // Mark messages as read
+        if (chat.LastMessage != null)
+        {
+            await ChatService.MarkAsReadAsync(chat.ChatId, chat.LastMessage.MessageId);
+        }
+    }
+
+    private async Task SendMessage()
+    {
+        if (!string.IsNullOrWhiteSpace(messageInput) && selectedChat != null)
+        {
+            await ChatService.SendMessageViaSignalRAsync(selectedChat.ChatId, messageInput);
+            messageInput = string.Empty;
+            await ChatService.StopTypingAsync(selectedChat.ChatId);
+        }
+    }
+
+    private async void OnTyping(ChangeEventArgs e)
+    {
+        if (selectedChat != null)
+        {
+            // Start typing indicator
+            await ChatService.StartTypingAsync(selectedChat.ChatId);
+            
+            // Reset timer
+            typingTimer?.Dispose();
+            typingTimer = new Timer(async _ => 
+            {
+                await ChatService.StopTypingAsync(selectedChat.ChatId);
+                typingTimer?.Dispose();
+            }, null, 2000, Timeout.Infinite);
+        }
+    }
+
+    private async void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await SendMessage();
+        }
+    }
+
+    private async void OnMessageReceived(MessageModel message)
+    {
+        if (selectedChat?.ChatId == message.ChatId)
+        {
+            messages.Add(message);
+            StateHasChanged();
+            await ScrollToBottom();
+        }
+        
+        // Update chat list
+        var chat = allChats.FirstOrDefault(c => c.ChatId == message.ChatId);
+        if (chat != null)
+        {
+            chat.LastMessage = message;
+            chat.UpdatedAt = message.CreatedAt;
+            
+            if (chat.ChatId != selectedChat?.ChatId)
+            {
+                chat.UnreadCount++;
+            }
+            
+            // Reorder chats
+            allChats = allChats
+                .OrderByDescending(c => c.UpdatedAt)
+                .ToList();
+                
+            FilterChats(new ChangeEventArgs { Value = searchQuery });
+        }
+    }
+
+    private void OnUserTypingReceived(int chatId, string displayName)
+    {
+        if (selectedChat?.ChatId == chatId)
+        {
+            typingUsers[chatId] = new TypingUser 
+            { 
+                DisplayName = displayName, 
+                StartTime = DateTime.Now 
+            };
+            StateHasChanged();
+        }
+    }
+
+    private void OnUserStoppedTyping(int chatId)
+    {
+        typingUsers.Remove(chatId);
+        StateHasChanged();
+    }
+
+    private void OnMessageRead(int messageId, int readBy, DateTime readAt)
+    {
+        // Update read status in messages
+        var message = messages.FirstOrDefault(m => m.MessageId == messageId);
+        if (message != null)
+        {
+            // Update read status logic here
+        }
+    }
+
+    private async Task ScrollToBottom()
+    {
+        await Task.Delay(50); // Allow rendering to complete
+        await JSRuntime.InvokeVoidAsync("scrollToBottom", messagesDivRef);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        typingTimer?.Dispose();
+        await ChatService.StopConnectionAsync();
+    }
+
+    private string GetMessagePreview(MessageModel msg) =>
+        msg.IsDeleted ? "[Deleted]" : 
+        msg.Content.Length > 30 ? msg.Content[..30] + "..." : msg.Content;
+
+    private string GetDirectChatName(ChatModel chat) =>
+        chat.Members.FirstOrDefault(m => m.Id != currentUserId)?.DisplayName ?? "Unknown";
+
+    private string GetDirectChatInitial(ChatModel chat) =>
+        GetDirectChatName(chat)?.FirstOrDefault().ToString().ToUpper() ?? "?";
+
+    private string GetRelativeTime(DateTime dateTime)
+    {
+        var diff = DateTime.Now - dateTime;
+
+        if (diff.TotalMinutes < 1)
+            return "just now";
+        if (diff.TotalMinutes < 60)
+            return $"{(int)diff.TotalMinutes}m ago";
+        if (diff.TotalHours < 24)
+            return $"{(int)diff.TotalHours}h ago";
+        if (diff.TotalDays < 7)
+            return $"{(int)diff.TotalDays}d ago";
+        
+        return dateTime.ToString("MMM dd");
+    }
+
+    private bool showNewChatModal = false;
+    private string newGroupName = string.Empty;
+    private string newGroupMemberIds = string.Empty;
+
+    private void ShowNewChatModal()
+    {
+        showNewChatModal = true;
+        newGroupName = string.Empty;
+        newGroupMemberIds = string.Empty;
+    }
+
+    private async Task CreateGroupChat()
+    {
+        var memberIdList = newGroupMemberIds
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(id => int.TryParse(id.Trim(), out var parsed) ? parsed : (int?)null)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .ToList();
+
+        var request = new CreateGroupChatRequest
+        {
+            ChatName = newGroupName,
+            MemberIds = memberIdList
+        };
+
+        var createdChat = await ChatService.CreateGroupChatAsync(request);
+
+        // Load lại danh sách
+        allChats = await ChatService.GetUserChatsAsync();
+        filteredChats = allChats;
+
+        // Tự động mở cuộc trò chuyện mới
+        await SelectChat(allChats.FirstOrDefault(c => c.ChatId == createdChat.ChatId));
+
+        showNewChatModal = false;
+    }
+}

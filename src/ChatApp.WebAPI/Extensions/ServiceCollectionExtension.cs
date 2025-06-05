@@ -22,7 +22,6 @@ namespace ChatApp.WebAPI.Extensions
                 .AddEntityFrameworkStores<ApplicationDbContext>()
                 .AddDefaultTokenProviders();
 
-            services.AddScoped<IAuth0UserSyncService, Auth0UserSyncService>();
             services.AddSignalR();
             return services;
         }

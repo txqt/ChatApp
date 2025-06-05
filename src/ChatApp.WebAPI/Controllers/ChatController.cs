@@ -19,53 +19,59 @@ namespace ChatApp.WebAPI.Controllers
         [HttpGet]
         public async Task<IActionResult> GetUserChats()
         {
-            var chats = await _context.ChatMembers
-                .Where(cm => cm.UserId == CurrentUserId && cm.IsActive)
-                .Include(cm => cm.Chat)
-                    .ThenInclude(c => c.LastMessage)
-                        .ThenInclude(lm => lm.Sender)
-                .Include(cm => cm.Chat)
-                    .ThenInclude(c => c.Members.Where(m => m.IsActive))
-                        .ThenInclude(m => m.User)
-                .Select(cm => new
-                {
-                    cm.Chat.ChatId,
-                    cm.Chat.ChatName,
-                    cm.Chat.ChatType,
-                    cm.Chat.AvatarUrl,
-                    cm.Chat.CreatedAt,
-                    cm.Chat.UpdatedAt,
-                    LastMessage = cm.Chat.LastMessage != null ? new
-                    {
-                        cm.Chat.LastMessage.MessageId,
-                        cm.Chat.LastMessage.Content,
-                        cm.Chat.LastMessage.MessageType,
-                        cm.Chat.LastMessage.CreatedAt,
-                        Sender = new
-                        {
-                            cm.Chat.LastMessage.Sender.Id,
-                            cm.Chat.LastMessage.Sender.DisplayName,
-                            cm.Chat.LastMessage.Sender.AvatarUrl
-                        }
-                    } : null,
-                    Members = cm.Chat.Members.Select(m => new
-                    {
-                        m.User.Id,
-                        m.User.DisplayName,
-                        m.User.AvatarUrl,
-                        m.User.IsOnline,
-                        m.Role
-                    }),
-                    UnreadCount = _context.Messages
-                        .Where(msg => msg.ChatId == cm.Chat.ChatId &&
-                               msg.CreatedAt > (cm.LastReadAt ?? DateTime.MinValue) &&
-                               msg.SenderId != CurrentUserId)
-                        .Count(),
-                    cm.LastReadAt,
-                    cm.IsMuted
-                })
-                .OrderByDescending(c => c.LastMessage != null ? c.LastMessage.CreatedAt : c.CreatedAt)
-                .ToListAsync();
+            var chatsData = await _context.ChatMembers
+    .Where(cm => cm.UserId == CurrentUserId && cm.IsActive)
+    .Include(cm => cm.Chat)
+        .ThenInclude(c => c.LastMessage)
+            .ThenInclude(lm => lm.Sender)
+    .Include(cm => cm.Chat)
+        .ThenInclude(c => c.Members.Where(m => m.IsActive))
+            .ThenInclude(m => m.User)
+    .Select(cm => new
+    {
+        cm.Chat.ChatId,
+        cm.Chat.ChatName,
+        cm.Chat.ChatType,
+        cm.Chat.AvatarUrl,
+        cm.Chat.CreatedAt,
+        cm.Chat.UpdatedAt,
+        LastMessage = cm.Chat.LastMessage != null ? new
+        {
+            cm.Chat.LastMessage.MessageId,
+            cm.Chat.LastMessage.Content,
+            cm.Chat.LastMessage.MessageType,
+            cm.Chat.LastMessage.CreatedAt,
+            Sender = new
+            {
+                cm.Chat.LastMessage.Sender.Id,
+                cm.Chat.LastMessage.Sender.DisplayName,
+                cm.Chat.LastMessage.Sender.AvatarUrl
+            }
+        } : null,
+        Members = cm.Chat.Members.Select(m => new
+        {
+            m.User.Id,
+            m.User.DisplayName,
+            m.User.AvatarUrl,
+            m.User.IsOnline,
+            m.Role
+        }),
+        UnreadCount = _context.Messages
+            .Where(msg => msg.ChatId == cm.Chat.ChatId &&
+                   msg.CreatedAt > (cm.LastReadAt ?? DateTime.MinValue) &&
+                   msg.SenderId != CurrentUserId)
+            .Count(),
+        cm.LastReadAt,
+        cm.IsMuted
+    })
+    .ToListAsync();
+
+            var chats = chatsData
+                .OrderByDescending(c => c.LastMessage?.CreatedAt ?? c.CreatedAt)
+                .ToList();
+
+            return Ok(chats);
+
 
             return Ok(chats);
         }
