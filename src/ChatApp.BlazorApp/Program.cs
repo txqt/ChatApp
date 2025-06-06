@@ -24,22 +24,19 @@ builder.Services.AddScoped(sp =>
 var auth0Section = builder.Configuration.GetSection("Auth0");
 string authority = auth0Section["Authority"]!;
 string clientId = auth0Section["ClientId"]!;
-string audience = auth0Section["Audience"]!;             // nếu có
-string redirectUri = auth0Section["RedirectUri"]!;       // "https://localhost:5001/authentication/login-callback"
+string audience = auth0Section["Audience"]!;
+string redirectUri = auth0Section["RedirectUri"]!;
 string postLogoutRedirectUri = auth0Section["PostLogoutRedirectUri"]!;
 
 builder.Services.AddOidcAuthentication(options =>
 {
-    // Bắt buộc: Authority + ClientId
-    options.ProviderOptions.Authority = authority;  // "https://brochat.us.auth0.com"
-    options.ProviderOptions.ClientId = clientId;   // "dSYcc1KnaYGjIfXF7TLDoL8ASYLyySUx"
+    options.ProviderOptions.Authority = authority;
+    options.ProviderOptions.ClientId = clientId;
     options.ProviderOptions.ResponseType = "code";
 
-    // Khai báo redirectUri / postLogoutRedirectUri
     options.ProviderOptions.RedirectUri = redirectUri;
     options.ProviderOptions.PostLogoutRedirectUri = postLogoutRedirectUri;
 
-    // Thêm các scope bắt buộc (Auth0 yêu cầu ít nhất "openid")
     options.ProviderOptions.DefaultScopes.Add("openid");
     options.ProviderOptions.DefaultScopes.Add("profile");
     options.ProviderOptions.DefaultScopes.Add("email");
@@ -49,4 +46,5 @@ builder.Services.AddOidcAuthentication(options =>
 });
 
 builder.Services.AddScoped<IChatService, ChatService>();
+
 await builder.Build().RunAsync();

@@ -20,7 +20,7 @@ namespace ChatApp.Infrastructure.Data
                 .Build();
 
             //var connectionString = configuration.GetConnectionString("DefaultConnection");
-            var connectionString = Environment.GetEnvironmentVariable("JWT_SECRET");
+            var connectionString = Environment.GetEnvironmentVariable("DefaultConnection");
 
             optionsBuilder.UseNpgsql(connectionString);
 

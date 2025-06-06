@@ -71,9 +71,6 @@ namespace ChatApp.WebAPI.Controllers
                 .ToList();
 
             return Ok(chats);
-
-
-            return Ok(chats);
         }
 
         [HttpPost("direct")]
