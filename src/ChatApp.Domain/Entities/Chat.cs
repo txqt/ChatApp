@@ -11,7 +11,7 @@ namespace ChatApp.Domain.Entities
     {
         public int ChatId { get; set; }
         public ChatType ChatType { get; set; }
-        public string? ChatName { get; set; } // Null for direct chats
+        public string? ChatName { get; set; }
         public string? Description { get; set; }
         public string? AvatarUrl { get; set; }
         public int CreatedBy { get; set; }
@@ -30,5 +30,32 @@ namespace ChatApp.Domain.Entities
         public Message? LastMessage { get; set; }
         public ICollection<ChatMember> Members { get; set; } = new List<ChatMember>();
         public ICollection<Message> Messages { get; set; } = new List<Message>();
+        public ICollection<ChatRolePermission> RolePermissions { get; set; } = new List<ChatRolePermission>();
+
+        // Helper methods
+        public ChatPermissions GetRolePermissions(ChatMemberRole role)
+        {
+            var rolePermission = RolePermissions.FirstOrDefault(rp => rp.Role == role);
+            if (rolePermission != null)
+            {
+                return (ChatPermissions)rolePermission.PermissionMask;
+            }
+
+            // Default permissions by role
+            return role switch
+            {
+                ChatMemberRole.Owner => ChatPermissions.Owner,
+                ChatMemberRole.Admin => ChatPermissions.Admin,
+                ChatMemberRole.Moderator => ChatPermissions.Moderator,
+                ChatMemberRole.Member => ChatPermissions.BasicUser,
+                _ => ChatPermissions.BasicUser
+            };
+        }
+
+        public bool HasPermission(ChatMemberRole role, ChatPermissions permission)
+        {
+            var rolePermissions = GetRolePermissions(role);
+            return rolePermissions.HasFlag(permission);
+        }
     }
 }

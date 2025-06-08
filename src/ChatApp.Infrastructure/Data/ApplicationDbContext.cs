@@ -29,6 +29,7 @@ namespace ChatApp.Infrastructure.Data
         // Permission system
         public DbSet<UserPermission> UserPermissions { get; set; }
         public DbSet<RolePermission> RolePermissions { get; set; }
+        public DbSet<ChatRolePermission> ChatRolePermissions { get; set; }
 
         // Chat system
         public DbSet<Chat> Chats { get; set; }
@@ -109,6 +110,21 @@ namespace ChatApp.Infrastructure.Data
                 entity.HasOne(e => e.Role)
                     .WithOne(r => r.RolePermission)
                     .HasForeignKey<RolePermission>(e => e.RoleId);
+
+                entity.HasOne(e => e.UpdatedByUser)
+                    .WithMany()
+                    .HasForeignKey(e => e.UpdatedBy)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<ChatRolePermission>(entity =>
+            {
+                entity.Property(e => e.PermissionMask).IsRequired();
+
+                entity.HasKey(e => e.ChatId);
+                entity.HasOne(e => e.Chat)
+                    .WithMany(r => r.RolePermissions)
+                    .HasForeignKey(e => e.ChatId);
 
                 entity.HasOne(e => e.UpdatedByUser)
                     .WithMany()

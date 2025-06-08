@@ -7,18 +7,17 @@ using System.Security.Claims;
 
 namespace ChatApp.Infrastructure.Services
 {
-    public interface IAuth0UserSyncService
+    public interface IAuth0Service
     {
         Task<ApplicationUser> SyncUserAsync(ClaimsPrincipal claimsPrincipal);
-        Task<ApplicationUser?> GetUserByAuth0IdAsync(string auth0Id);
     }
 
-    public class Auth0UserSyncService : IAuth0UserSyncService
+    public class Auth0Service : IAuth0Service
     {
         private readonly IApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
 
-        public Auth0UserSyncService(
+        public Auth0Service(
             IApplicationDbContext context,
             UserManager<ApplicationUser> userManager)
         {
@@ -31,7 +30,7 @@ namespace ChatApp.Infrastructure.Services
             var auth0Id = claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value
                 ?? claimsPrincipal.FindFirst("sub")?.Value;
             var email = claimsPrincipal.FindFirst(ClaimTypes.Email)?.Value;
-            var name = claimsPrincipal.FindFirst(ClaimTypes.Name)?.Value;
+            var name = claimsPrincipal.FindFirst("name")?.Value;
             var picture = claimsPrincipal.FindFirst("picture")?.Value;
 
             if (string.IsNullOrEmpty(auth0Id))
@@ -77,12 +76,13 @@ namespace ChatApp.Infrastructure.Services
             // Tạo user mới
             var newUser = new ApplicationUser
             {
-                UserName = auth0Id,
-                NormalizedUserName = auth0Id.ToUpper(),
+                UserName = email,
+                NormalizedUserName = email?.ToUpper(),
                 Email = email,
                 NormalizedEmail = email?.ToUpper(),
                 EmailConfirmed = true, // Auth0 đã verify
                 DisplayName = name ?? email ?? "Unknown User",
+                Auth0Id = auth0Id,
                 AvatarUrl = picture,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
@@ -104,14 +104,6 @@ namespace ChatApp.Infrastructure.Services
             return newUser;
         }
 
-        public async Task<ApplicationUser?> GetUserByAuth0IdAsync(string auth0Id)
-        {
-            return await _context.Users
-                .Include(u => u.UserRoles)
-                    .ThenInclude(ur => ur.Role)
-                .Include(u => u.UserPermission)
-                .FirstOrDefaultAsync(u => u.UserName == auth0Id);
-        }
 
         private async Task AssignDefaultRoleAsync(ApplicationUser user)
         {

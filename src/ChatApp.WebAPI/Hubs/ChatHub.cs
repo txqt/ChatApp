@@ -5,6 +5,7 @@ using ChatApp.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace ChatApp.WebAPI.Hubs
 {
@@ -12,18 +13,18 @@ namespace ChatApp.WebAPI.Hubs
     public class ChatHub : Hub
     {
         private readonly IApplicationDbContext _context;
-        private readonly IAuth0UserSyncService _userSyncService;
+        private readonly IUserService _userService;
 
-        public ChatHub(IApplicationDbContext context, IAuth0UserSyncService userSyncService)
+        public ChatHub(IApplicationDbContext context, IUserService userService)
         {
             _context = context;
-            _userSyncService = userSyncService;
+            _userService = userService;
         }
 
         public override async Task OnConnectedAsync()
         {
             // Sync user và get current user
-            var currentUser = await _userSyncService.SyncUserAsync(Context.User!);
+            var currentUser = await GetCurrentUser();
 
             // Update user online status
             currentUser.IsOnline = true;
@@ -36,13 +37,16 @@ namespace ChatApp.WebAPI.Hubs
                 .Select(cm => cm.ChatId.ToString())
                 .ToListAsync();
 
-            foreach (var chatId in userChats)
+            if(userChats.Any())
             {
-                await Groups.AddToGroupAsync(Context.ConnectionId, $"Chat_{chatId}");
-            }
+                foreach (var chatId in userChats)
+                {
+                    await Groups.AddToGroupAsync(Context.ConnectionId, $"Chat_{chatId}");
+                }
 
-            // Notify other users that this user is online
-            await Clients.All.SendAsync("UserOnline", new { userId = currentUser.Id, displayName = currentUser.DisplayName });
+                // Notify other users that this user is online
+                await Clients.All.SendAsync("UserOnline", new { userId = currentUser.Id, displayName = currentUser.DisplayName });
+            }
 
             await base.OnConnectedAsync();
         }
@@ -68,7 +72,7 @@ namespace ChatApp.WebAPI.Hubs
 
         public async Task SendMessage(int chatId, string content, MessageType messageType = MessageType.Text, int? replyToMessageId = null)
         {
-            var currentUser = await _userSyncService.SyncUserAsync(Context.User!);
+            var currentUser = await GetCurrentUser();
 
             // Kiểm tra user có quyền gửi tin nhắn không
             var membership = await _context.ChatMembers
@@ -164,7 +168,7 @@ namespace ChatApp.WebAPI.Hubs
 
         public async Task JoinChat(int chatId)
         {
-            var currentUser = await _userSyncService.SyncUserAsync(Context.User!);
+            var currentUser = await GetCurrentUser();
 
             var membership = await _context.ChatMembers
                 .FirstOrDefaultAsync(cm => cm.ChatId == chatId && cm.UserId == currentUser.Id && cm.IsActive);
@@ -184,7 +188,7 @@ namespace ChatApp.WebAPI.Hubs
 
         public async Task MarkAsRead(int chatId, int messageId)
         {
-            var currentUser = await _userSyncService.SyncUserAsync(Context.User!);
+            var currentUser = await GetCurrentUser();
 
             // Update last read message
             var membership = await _context.ChatMembers
@@ -222,7 +226,7 @@ namespace ChatApp.WebAPI.Hubs
 
         public async Task StartTyping(int chatId)
         {
-            var currentUser = await _userSyncService.SyncUserAsync(Context.User!);
+            var currentUser = await GetCurrentUser();
 
             await Clients.GroupExcept($"Chat_{chatId}", Context.ConnectionId)
                 .SendAsync("UserTyping", new { chatId, userId = currentUser.Id, displayName = currentUser.DisplayName });
@@ -230,10 +234,29 @@ namespace ChatApp.WebAPI.Hubs
 
         public async Task StopTyping(int chatId)
         {
-            var currentUser = await _userSyncService.SyncUserAsync(Context.User!);
+            var currentUser = await GetCurrentUser();
 
             await Clients.GroupExcept($"Chat_{chatId}", Context.ConnectionId)
                 .SendAsync("UserStoppedTyping", new { chatId, userId = currentUser.Id });
+        }
+
+        public async Task<ApplicationUser> GetCurrentUser()
+        {
+            var auth0Id = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? Context.User?.FindFirst("sub")?.Value;
+
+            if (string.IsNullOrEmpty(auth0Id))
+            {
+                throw new UnauthorizedAccessException("User is not authenticated");
+            }
+
+            var currentUser = await _userService.GetUserByAuth0IdAsync(auth0Id);
+            if (currentUser is null)
+            {
+                throw new UnauthorizedAccessException("User is not authenticated");
+            }
+
+            return currentUser;
         }
     }
 }

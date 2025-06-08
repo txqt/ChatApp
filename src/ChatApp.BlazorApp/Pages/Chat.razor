@@ -5,6 +5,12 @@
 @attribute [Authorize]
 
 <!-- Component UI -->
+@if (!ChatService.IsConnected)
+{
+    <div class="alert alert-warning" role="alert">
+        ⚠️ Đã mất kết nối với hệ thống, đang cố gắng kết nối lại…
+    </div>
+}
 <div class="chat-container">
     <div class="chat-sidebar">
         <div class="sidebar-header">

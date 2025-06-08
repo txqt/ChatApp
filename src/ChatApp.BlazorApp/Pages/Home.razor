@@ -1,7 +1,9 @@
 ﻿@page "/"
-@using Microsoft.AspNetCore.Authorization
-<PageTitle>Home</PageTitle>
+@inject NavigationManager NavManager
 
-<h1>Hello, world!</h1>
-
-Welcome to your new app.
+@code {
+    protected override void OnInitialized()
+    {
+        NavManager.NavigateTo("/chat", replace: true);
+    }
+}

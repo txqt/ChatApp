@@ -4,6 +4,7 @@ using ChatApp.Infrastructure.Data;
 using ChatApp.Infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using ChatApp.Application;
 
 namespace ChatApp.WebAPI.Extensions
 {
@@ -16,6 +17,7 @@ namespace ChatApp.WebAPI.Extensions
                 options.UseNpgsql(Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection"));
             });
 
+            services.AddApplication(configuration);
             services.AddInfrastructure(configuration);
 
             services.AddIdentity<ApplicationUser, ApplicationRole>()

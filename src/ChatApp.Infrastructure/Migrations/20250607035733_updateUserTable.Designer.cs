@@ -3,6 +3,7 @@ using System;
 using ChatApp.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ChatApp.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250607035733_updateUserTable")]
+    partial class updateUserTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -342,30 +345,6 @@ namespace ChatApp.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("ChatMembers");
-                });
-
-            modelBuilder.Entity("ChatApp.Domain.Entities.ChatRolePermission", b =>
-                {
-                    b.Property<int>("ChatId")
-                        .HasColumnType("integer");
-
-                    b.Property<long>("PermissionMask")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("Role")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("UpdatedBy")
-                        .HasColumnType("integer");
-
-                    b.HasKey("ChatId");
-
-                    b.HasIndex("UpdatedBy");
-
-                    b.ToTable("ChatRolePermissions");
                 });
 
             modelBuilder.Entity("ChatApp.Domain.Entities.MediaFile", b =>
@@ -749,25 +728,6 @@ namespace ChatApp.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("ChatApp.Domain.Entities.ChatRolePermission", b =>
-                {
-                    b.HasOne("ChatApp.Domain.Entities.Chat", "Chat")
-                        .WithMany("RolePermissions")
-                        .HasForeignKey("ChatId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ChatApp.Domain.Entities.ApplicationUser", "UpdatedByUser")
-                        .WithMany()
-                        .HasForeignKey("UpdatedBy")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .IsRequired();
-
-                    b.Navigation("Chat");
-
-                    b.Navigation("UpdatedByUser");
-                });
-
             modelBuilder.Entity("ChatApp.Domain.Entities.MediaFile", b =>
                 {
                     b.HasOne("ChatApp.Domain.Entities.ApplicationUser", "UploadedByUser")
@@ -944,8 +904,6 @@ namespace ChatApp.Infrastructure.Migrations
                     b.Navigation("Members");
 
                     b.Navigation("Messages");
-
-                    b.Navigation("RolePermissions");
                 });
 
             modelBuilder.Entity("ChatApp.Domain.Entities.MediaFile", b =>

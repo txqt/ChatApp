@@ -12,7 +12,7 @@ namespace ChatApp.WebAPI.Middleware
             _next = next;
         }
 
-        public async Task InvokeAsync(HttpContext context, IAuth0UserSyncService userSyncService)
+        public async Task InvokeAsync(HttpContext context, IAuth0Service userSyncService)
         {
             // Chỉ xử lý với authenticated requests
             if (context.User.Identity?.IsAuthenticated == true)

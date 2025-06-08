@@ -1,0 +1,8 @@
+﻿@inject NavigationManager NavigationManager
+@code {
+    [Parameter] public string Route { get; set; } = "/";
+    protected override void OnInitialized()
+    {
+        NavigationManager.NavigateTo(Route, replace: true);
+    }
+}

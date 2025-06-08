@@ -44,6 +44,7 @@ namespace ChatApp.Domain.Enum
         ManageRoles = 1L << 19,       // 0x80000 - Manage roles and permissions
         ViewSystemLogs = 1L << 20,    // 0x100000 - View system audit logs
         ManageSystem = 1L << 21,      // 0x200000 - System configuration
+        DeleteAnyChat = 1L << 22,     // 0x400000 - Delete any chat (admin)
 
         // ===== PREDEFINED ROLE COMBINATIONS =====
         BasicUser = SendMessage | CreateDirectChat | JoinGroup |
@@ -56,7 +57,7 @@ namespace ChatApp.Domain.Enum
 
         Administrator = GroupModerator | DeleteGroup | EditAnyMessage |
                        BanUser | ManageUsers | ManageRoles |
-                       ViewSystemLogs | ManageSystem,
+                       ViewSystemLogs | ManageSystem | DeleteAnyChat,
 
         SuperAdmin = Administrator | long.MaxValue // All permissions
     }

@@ -18,6 +18,7 @@ namespace ChatApp.Application.Interfaces
         // Permission system
         DbSet<UserPermission> UserPermissions { get; set; }
         DbSet<RolePermission> RolePermissions { get; set; }
+        public DbSet<ChatRolePermission> ChatRolePermissions { get; set; }
 
         // Chat system
         DbSet<Chat> Chats { get; set; }

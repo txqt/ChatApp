@@ -11,7 +11,8 @@ namespace ChatApp.Infrastructure
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddScoped<IApplicationDbContext, ApplicationDbContext>();
-            services.AddScoped<IAuth0UserSyncService, Auth0UserSyncService>();
+            services.AddScoped<IAuth0Service, Auth0Service>();
+            services.AddScoped<IUserService, UserService>();
             return services;
         }
     }

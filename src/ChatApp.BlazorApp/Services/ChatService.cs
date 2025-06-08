@@ -31,6 +31,8 @@ namespace ChatApp.BlazorApp.Services
         Task MarkAsReadAsync(int chatId, int messageId);
         Task StartTypingAsync(int chatId);
         Task StopTypingAsync(int chatId);
+
+        public bool IsConnected { get;}
     }
 
     public class ChatService : IChatService, IAsyncDisposable
@@ -39,6 +41,8 @@ namespace ChatApp.BlazorApp.Services
         private HubConnection? _hubConnection;
         private readonly JsonSerializerOptions _jsonOptions;
         private readonly IAccessTokenProvider _accessTokenProvider;
+
+        public bool IsConnected { get; private set; }
 
         public ChatService(HttpClient httpClient, IAccessTokenProvider accessTokenProvider)
         {
@@ -56,6 +60,7 @@ namespace ChatApp.BlazorApp.Services
         public event Action<int>? OnUserStoppedTyping;
         public event Action<int, bool>? OnUserOnlineStatusChanged;
         public event Action<int, int, DateTime>? OnMessageRead;
+        public event Action? ConnectionStateChanged;
 
         public async Task<List<ChatModel>> GetUserChatsAsync()
         {
@@ -181,7 +186,32 @@ namespace ChatApp.BlazorApp.Services
                 OnMessageRead?.Invoke((int)data.messageId, (int)data.readBy, DateTime.Parse((string)data.readAt));
             });
 
+            _hubConnection.Reconnecting += error =>
+            {
+                IsConnected = false;
+                ConnectionStateChanged?.Invoke();
+                return Task.CompletedTask;
+            };
+
+            _hubConnection.Reconnected += connectionId =>
+            {
+                IsConnected = true;
+                ConnectionStateChanged?.Invoke();
+                return Task.CompletedTask;
+            };
+
+            _hubConnection.Closed += async error =>
+            {
+                IsConnected = false;
+                ConnectionStateChanged?.Invoke();
+
+                await Task.Delay(5000);
+                await StartConnectionAsync();
+            };
+
             await _hubConnection.StartAsync();
+            IsConnected = true;
+            ConnectionStateChanged?.Invoke();
         }
 
         public async Task StopConnectionAsync()

@@ -40,6 +40,7 @@ builder.Services.AddOidcAuthentication(options =>
     options.ProviderOptions.DefaultScopes.Add("openid");
     options.ProviderOptions.DefaultScopes.Add("profile");
     options.ProviderOptions.DefaultScopes.Add("email");
+    options.ProviderOptions.DefaultScopes.Add("offline_access");
 
     // Nếu bạn dùng Audience để request Access Token cho API:
     options.ProviderOptions.AdditionalProviderParameters.Add("audience", audience);
