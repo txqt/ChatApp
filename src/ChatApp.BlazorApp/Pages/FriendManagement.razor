@@ -1,0 +1,214 @@
+﻿@* Pages/FriendManagement.razor *@
+@page "/friends"
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Quản lý bạn bè</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h3 class="mb-4">
+                <i class="fas fa-user-friends"></i> Quản lý bạn bè
+            </h3>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <ul class="nav nav-pills mb-3" id="friendTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link @(activeTab == "search" ? "active" : "")"
+                            @onclick='() => SetActiveTab("search")' type="button">
+                        <i class="fas fa-search"></i> Tìm kiếm
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link @(activeTab == "requests" ? "active" : "")"
+                            @onclick='() => SetActiveTab("requests")' type="button">
+                        <i class="fas fa-user-clock"></i> Lời mời kết bạn
+                        @if (pendingRequestsCount > 0)
+                        {
+                            <span class="badge bg-danger ms-2">@pendingRequestsCount</span>
+                        }
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link @(activeTab == "friends" ? "active" : "")"
+                            @onclick='() => SetActiveTab("friends")' type="button">
+                        <i class="fas fa-users"></i> Danh sách bạn bè
+                        @if (friendsCount > 0)
+                        {
+                            <span class="badge bg-primary ms-2">@friendsCount</span>
+                        }
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="tab-content">
+                @if (activeTab == "search")
+                {
+                    <div class="tab-pane fade show active">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-search"></i> Tìm kiếm người dùng
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <UserSearch OnStartChat="HandleStartChat" />
+                            </div>
+                        </div>
+                    </div>
+                }
+                else if (activeTab == "requests")
+                {
+                    <div class="tab-pane fade show active">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-user-clock"></i> Quản lý lời mời kết bạn
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <FriendRequests @ref="friendRequestsComponent" OnRequestsChanged="HandleRequestsChanged" />
+                            </div>
+                        </div>
+                    </div>
+                }
+                else if (activeTab == "friends")
+                {
+                    <div class="tab-pane fade show active">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-users"></i> Danh sách bạn bè
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <FriendsList @ref="friendsListComponent"
+                                             OnStartChat="HandleStartChat"
+                                             OnFriendsChanged="HandleFriendsChanged" />
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback<int> OnStartChat { get; set; }
+
+    private string activeTab = "friends";
+    private int pendingRequestsCount = 0;
+    private int friendsCount = 0;
+
+    private FriendRequests? friendRequestsComponent;
+    private FriendsList? friendsListComponent;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCounts();
+    }
+
+    private void SetActiveTab(string tab)
+    {
+        activeTab = tab;
+        StateHasChanged();
+    }
+
+    private async Task HandleStartChat(int userId)
+    {
+        await OnStartChat.InvokeAsync(userId);
+        await JSRuntime.InvokeVoidAsync("alert", $"Bắt đầu chat với user ID: {userId}");
+    }
+
+    private async Task HandleRequestsChanged()
+    {
+        await LoadCounts();
+        if (friendsListComponent != null)
+        {
+            await friendsListComponent.RefreshFriends();
+        }
+        StateHasChanged();
+    }
+
+    private async Task HandleFriendsChanged()
+    {
+        await LoadCounts();
+        if (friendRequestsComponent != null)
+        {
+            await friendRequestsComponent.RefreshRequests();
+        }
+        StateHasChanged();
+    }
+
+    private async Task LoadCounts()
+    {
+        try
+        {
+            // This would ideally be separate API endpoints for counts
+            // For now, we'll update counts when components refresh
+            pendingRequestsCount = 0; // Will be updated by components
+            friendsCount = 0; // Will be updated by components
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading counts: {ex.Message}");
+        }
+    }
+}
+
+@* Models/DTOs for Blazor (Client-side DTOs) *@
+@code {
+    // Client-side DTOs - These should match the server-side DTOs
+    public class UserSearchDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Avatar { get; set; } = string.Empty;
+        public bool IsOnline { get; set; }
+        public DateTime LastSeen { get; set; }
+        public FriendshipStatus? FriendshipStatus { get; set; }
+        public bool IsFriend { get; set; }
+        public bool HasPendingRequest { get; set; }
+    }
+
+    public class FriendRequestDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string RequesterId { get; set; } = string.Empty;
+        public string RequesterName { get; set; } = string.Empty;
+        public string RequesterDisplayName { get; set; } = string.Empty;
+        public string RequesterAvatar { get; set; } = string.Empty;
+        public string ReceiverId { get; set; } = string.Empty;
+        public FriendshipStatus Status { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class FriendDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+        public string Avatar { get; set; } = string.Empty;
+        public bool IsOnline { get; set; }
+        public DateTime LastSeen { get; set; }
+        public DateTime FriendsSince { get; set; }
+    }
+
+    public enum FriendshipStatus
+    {
+        Pending = 0,
+        Accepted = 1,
+        Declined = 2,
+        Blocked = 3
+    }
+}

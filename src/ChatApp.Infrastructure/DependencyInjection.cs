@@ -13,6 +13,7 @@ namespace ChatApp.Infrastructure
             services.AddScoped<IApplicationDbContext, ApplicationDbContext>();
             services.AddScoped<IAuth0Service, Auth0Service>();
             services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IFriendService, FriendService>();
             return services;
         }
     }

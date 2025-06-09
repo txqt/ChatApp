@@ -8,28 +8,6 @@ namespace ChatApp.Application.Extensions
     public static class PermissionExtensions
     {
         /// <summary>
-        /// Kiểm tra có quyền hay không, throw exception nếu không có
-        /// </summary>
-        public static async Task RequirePermission(this IUnifiedPermissionService permissionService,
-            int userId, int? chatId, string action)
-        {
-            var hasPermission = await permissionService.HasPermission(userId, chatId, action);
-            if (!hasPermission)
-            {
-                throw new UnauthorizedAccessException($"User {userId} không có quyền thực hiện action: {action}");
-            }
-        }
-
-        /// <summary>
-        /// Kiểm tra system permission
-        /// </summary>
-        public static async Task<bool> HasSystemPermission(this ISystemPermissionService permissionService,
-            int userId, AppPermissions permission)
-        {
-            return await permissionService.CanUserPerformAction(userId, permission);
-        }
-
-        /// <summary>
         /// Kiểm tra chat permission
         /// </summary>
         public static async Task<bool> HasChatPermission(this IChatPermissionService permissionService,

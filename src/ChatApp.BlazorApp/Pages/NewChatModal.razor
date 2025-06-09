@@ -1,0 +1,46 @@
+﻿@using Blazored.Modal  
+@using Blazored.Modal.Services  
+
+<div class="modal-body">  
+    <div class="form-group">  
+        <label>Group Name</label>  
+        <input class="form-control" @bind="NewGroupName" />  
+    </div>  
+    <div class="form-group">  
+        <label>Member User IDs (comma separated)</label>  
+        <input class="form-control" @bind="NewGroupMemberIds" />  
+    </div>  
+</div>  
+<div class="modal-footer">  
+    <button class="btn btn-secondary" @onclick="Cancel">Cancel</button>  
+    <button class="btn btn-primary" @onclick="Create">Create</button>  
+</div>  
+
+@code {  
+    [Parameter] public EventCallback<CreateGroupChatRequest> OnCreate { get; set; }
+    [CascadingParameter] BlazoredModalInstance ModalInstance { get; set; }
+
+    string NewGroupName { get; set; }  
+    string NewGroupMemberIds { get; set; }  
+
+    async Task Create()  
+    {  
+        var memberIdList = NewGroupMemberIds
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(id => int.TryParse(id.Trim(), out var parsed) ? parsed : (int?)null)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .ToList();
+
+        var info = new CreateGroupChatRequest  
+        {  
+            ChatName = NewGroupName,  
+            MemberIds = memberIdList
+        };  
+        await OnCreate.InvokeAsync(info);  
+        await ModalInstance.CloseAsync();  
+    }  
+
+    Task Cancel()  
+        => ModalInstance.CancelAsync();  
+}

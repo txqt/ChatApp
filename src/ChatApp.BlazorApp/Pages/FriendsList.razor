@@ -1,0 +1,193 @@
+﻿@* Components/FriendManagement/FriendsList.razor *@
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+
+<div class="friends-list-container">
+    <div class="friends-header">
+        <h5>Danh sách bạn bè (@friends.Count)</h5>
+        <button @onclick="LoadFriends" class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-sync-alt"></i> Làm mới
+        </button>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center mt-3">
+            <div class="spinner-border" role="status">
+                <span class="sr-only">Đang tải...</span>
+            </div>
+        </div>
+    }
+    else if (friends.Any())
+    {
+        <div class="friends-grid">
+            @foreach (var friend in friends)
+            {
+                <div class="friend-card">
+                    <div class="friend-info">
+                        <img src="@(!string.IsNullOrEmpty(friend.Avatar) ? friend.Avatar : "/images/default-avatar.png")"
+                             alt="@friend.DisplayName" class="friend-avatar" />
+                        <div class="friend-details">
+                            <h6>@friend.DisplayName</h6>
+                            <small class="text-muted">@@@friend.UserName</small>
+                            <div class="friend-status">
+                                @if (friend.IsOnline)
+                                {
+                                    <span class="status-online">
+                                        <i class="fas fa-circle"></i> Online
+                                    </span>
+                                }
+                                else
+                                {
+                                    @* Fix for CS1503: Argument 1: cannot convert from 'string' to 'System.IFormatProvider?' *@  
+                                    @* Updated the problematic line to correctly format the DateTime using the appropriate method *@  
+
+                                    <div class="friend-status">  
+                                        @if (friend.IsOnline)  
+                                        {  
+                                            <span class="status-online">  
+                                                <i class="fas fa-circle"></i> Online  
+                                            </span>  
+                                        }  
+                                        else  
+                                        {  
+                                            <span class="status-offline">  
+                                                <i class="fas fa-circle"></i> @friend.LastSeen?.ToString("dd/MM HH:mm")  
+                                            </span>  
+                                        }  
+                                    </div>
+                                }
+                            </div>
+                            <small class="text-muted">Bạn bè từ: @friend.FriendsSince.ToString("dd/MM/yyyy")</small>
+                        </div>
+                    </div>
+                    <div class="friend-actions">
+                        <button @onclick="() => StartChat(friend.Id)" class="btn btn-primary btn-sm">
+                            <i class="fas fa-comment"></i> Chat
+                        </button>
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                                    type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <button class="dropdown-item" @onclick="() => RemoveFriend(friend.Id)">
+                                        <i class="fas fa-user-minus"></i> Xóa bạn bè
+                                    </button>
+                                </li>
+                                <li>
+                                    <button class="dropdown-item" @onclick="() => BlockUser(friend.Id)">
+                                        <i class="fas fa-ban"></i> Chặn
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="no-friends">
+            <div class="text-center mt-4">
+                <i class="fas fa-user-friends fa-3x text-muted mb-3"></i>
+                <p class="text-muted">Bạn chưa có bạn bè nào.</p>
+                <p class="text-muted">Hãy tìm kiếm và kết bạn với những người bạn biết!</p>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback<int> OnStartChat { get; set; }
+    [Parameter] public EventCallback OnFriendsChanged { get; set; }
+
+    private List<FriendDto> friends = new();
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFriends();
+    }
+
+    private async Task LoadFriends()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.GetAsync("api/friends/list");
+            if (response.IsSuccessStatusCode)
+            {
+                friends = await response.Content.ReadFromJsonAsync<List<FriendDto>>() ?? new();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading friends: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "Có lỗi xảy ra khi tải danh sách bạn bè.");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task StartChat(int friendId)
+    {
+        await OnStartChat.InvokeAsync(friendId);
+    }
+
+    private async Task RemoveFriend(int friendId)
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", "Bạn có chắc muốn xóa bạn bè này?"))
+        {
+            try
+            {
+                var response = await Http.DeleteAsync($"api/friends/remove/{friendId}");
+                if (response.IsSuccessStatusCode)
+                {
+                    await JSRuntime.InvokeVoidAsync("alert", "Đã xóa bạn bè thành công!");
+                    await LoadFriends();
+                    await OnFriendsChanged.InvokeAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error removing friend: {ex.Message}");
+                await JSRuntime.InvokeVoidAsync("alert", "Có lỗi xảy ra khi xóa bạn bè.");
+            }
+        }
+    }
+
+    private async Task BlockUser(int userId)
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", "Bạn có chắc muốn chặn người dùng này?"))
+        {
+            try
+            {
+                var response = await Http.PostAsync($"api/friends/block/{userId}", null);
+                if (response.IsSuccessStatusCode)
+                {
+                    await JSRuntime.InvokeVoidAsync("alert", "Đã chặn người dùng thành công!");
+                    await LoadFriends();
+                    await OnFriendsChanged.InvokeAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error blocking user: {ex.Message}");
+                await JSRuntime.InvokeVoidAsync("alert", "Có lỗi xảy ra khi chặn người dùng.");
+            }
+        }
+    }
+
+    public async Task RefreshFriends()
+    {
+        await LoadFriends();
+    }
+}

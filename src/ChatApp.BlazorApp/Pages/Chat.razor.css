@@ -331,7 +331,7 @@
             animation-delay: -0.16s;
         }
 
-@@keyframes typing-dots {
+@keyframes typing-dots {
     0%, 80%, 100% {
         transform: scale(0);
     }
@@ -348,3 +348,27 @@
     height: 100%;
     color: #8c8c8c;
 }
+
+.sidebar-menu {
+    padding: 15px;
+    border-top: 1px solid #e0e0e0;
+    background: white;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #595959;
+    transition: background-color 0.2s;
+}
+
+    .menu-item:hover {
+        background-color: #f5f5f5;
+    }
+
+    .menu-item i {
+        margin-right: 10px;
+    }

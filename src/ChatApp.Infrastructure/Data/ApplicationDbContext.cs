@@ -41,6 +41,9 @@ namespace ChatApp.Infrastructure.Data
         // Audit
         public DbSet<AuditLog> AuditLogs { get; set; }
 
+        // Relationships
+        public DbSet<Friendship> Friendships { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -279,6 +282,25 @@ namespace ChatApp.Infrastructure.Data
                 entity.HasIndex(e => e.UserId);
                 entity.HasIndex(e => e.Timestamp);
                 entity.HasIndex(e => new { e.EntityType, e.EntityId });
+            });
+
+            modelBuilder.Entity<Friendship>(entity =>
+            {
+                entity.HasKey(f => f.Id);
+
+                entity.HasOne(f => f.Requester)
+                      .WithMany(u => u.SentFriendRequests)
+                      .HasForeignKey(f => f.RequesterId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(f => f.Receiver)
+                      .WithMany(u => u.ReceivedFriendRequests)
+                      .HasForeignKey(f => f.ReceiverId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                // Prevent duplicate friend requests
+                entity.HasIndex(f => new { f.RequesterId, f.ReceiverId })
+                      .IsUnique();
             });
         }
 

@@ -1,4 +1,5 @@
-﻿using ChatApp.BlazorApp;
+﻿using Blazored.Modal;
+using ChatApp.BlazorApp;
 using ChatApp.BlazorApp.Helpers;
 using ChatApp.BlazorApp.Services;
 using Microsoft.AspNetCore.Components.Web;
@@ -47,5 +48,6 @@ builder.Services.AddOidcAuthentication(options =>
 });
 
 builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddBlazoredModal();
 
 await builder.Build().RunAsync();

@@ -1,8 +1,11 @@
 ﻿@page "/chat"
 @inject IChatService ChatService
 @inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
 @implements IAsyncDisposable
 @attribute [Authorize]
+@inject IModalService Modal
 
 <!-- Component UI -->
 @if (!ChatService.IsConnected)
@@ -115,6 +118,19 @@
                     <p>No chats found</p>
                 </div>
             }
+        </div>
+
+        <!-- Sidebar Menu -->
+        <div class="sidebar-menu">
+            <div class="menu-item" @onclick="NavigateToProfile">
+                <i class="fas fa-user me-2"></i> Profile
+            </div>
+            <div class="menu-item" @onclick="NavigateToSettings">
+                <i class="fas fa-cog me-2"></i> Settings
+            </div>
+            <div class="menu-item" @onclick="Logout">
+                <i class="fas fa-sign-out-alt me-2"></i> Logout
+            </div>
         </div>
     </div>
 
@@ -263,36 +279,6 @@
         }
     </div>
 </div>
-
-@if (showNewChatModal)
-{
-    <div class="modal-overlay">
-        <div class="modal">
-            <div class="modal-header">
-                <h5>Create New Chat</h5>
-                <button class="close" @onclick="() => showNewChatModal = false">×</button>
-            </div>
-
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>Group Name</label>
-                    <input class="form-control" @bind="newGroupName" />
-                </div>
-                <div class="form-group">
-                    <label>Member User IDs (comma separated)</label>
-                    <input class="form-control" @bind="newGroupMemberIds" />
-                </div>
-            </div>
-
-            <div class="modal-footer">
-                <button class="btn btn-secondary" @onclick="() => showNewChatModal = false">Cancel</button>
-                <button class="btn btn-primary" @onclick="CreateGroupChat">Create</button>
-            </div>
-        </div>
-    </div>
-}
-
-
 @code {
     private List<ChatModel> allChats = new();
     private List<ChatModel> filteredChats = new();
@@ -331,7 +317,7 @@
         selectedChat = chat;
         messages = await ChatService.GetChatMessagesAsync(chat.ChatId);
         await ScrollToBottom();
-        
+
         // Mark messages as read
         if (chat.LastMessage != null)
         {
@@ -355,7 +341,7 @@
         {
             // Start typing indicator
             await ChatService.StartTypingAsync(selectedChat.ChatId);
-            
+
             // Reset timer
             typingTimer?.Dispose();
             typingTimer = new Timer(async _ => 
@@ -382,24 +368,24 @@
             StateHasChanged();
             await ScrollToBottom();
         }
-        
+
         // Update chat list
         var chat = allChats.FirstOrDefault(c => c.ChatId == message.ChatId);
         if (chat != null)
         {
             chat.LastMessage = message;
             chat.UpdatedAt = message.CreatedAt;
-            
+
             if (chat.ChatId != selectedChat?.ChatId)
             {
                 chat.UnreadCount++;
             }
-            
+
             // Reorder chats
             allChats = allChats
                 .OrderByDescending(c => c.UpdatedAt)
                 .ToList();
-                
+
             FilterChats(new ChangeEventArgs { Value = searchQuery });
         }
     }
@@ -467,45 +453,52 @@
             return $"{(int)diff.TotalHours}h ago";
         if (diff.TotalDays < 7)
             return $"{(int)diff.TotalDays}d ago";
-        
+
         return dateTime.ToString("MMM dd");
     }
 
     private bool showNewChatModal = false;
     private string newGroupName = string.Empty;
     private string newGroupMemberIds = string.Empty;
+    private IModalReference newChatModalReference;
 
-    private void ShowNewChatModal()
+    async Task ShowNewChatModal()
     {
-        showNewChatModal = true;
-        newGroupName = string.Empty;
-        newGroupMemberIds = string.Empty;
+        var options = new ModalOptions { DisableBackgroundCancel = true, HideHeader = false };
+        var parameters = new ModalParameters();
+
+        newChatModalReference = Modal.Show<NewChatModal>("Create New Chat", parameters, options);
+        var result = await newChatModalReference.Result;
+        if (!result.Cancelled && result.Data is CreateGroupChatRequest info)
+        {
+            await CreateGroupChat(info);
+        }
     }
 
-    private async Task CreateGroupChat()
+    private async Task CreateGroupChat(CreateGroupChatRequest createGroupChatRequest)
     {
-        var memberIdList = newGroupMemberIds
-            .Split(',', StringSplitOptions.RemoveEmptyEntries)
-            .Select(id => int.TryParse(id.Trim(), out var parsed) ? parsed : (int?)null)
-            .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .ToList();
+        var createdChat = await ChatService.CreateGroupChatAsync(createGroupChatRequest);
 
-        var request = new CreateGroupChatRequest
-        {
-            ChatName = newGroupName,
-            MemberIds = memberIdList
-        };
-
-        var createdChat = await ChatService.CreateGroupChatAsync(request);
-
-        // Load lại danh sách
         allChats = await ChatService.GetUserChatsAsync();
         filteredChats = allChats;
 
-        // Tự động mở cuộc trò chuyện mới
         await SelectChat(allChats.FirstOrDefault(c => c.ChatId == createdChat.ChatId));
 
-        showNewChatModal = false;
+        newChatModalReference.Close();
+    }
+
+    // Menu action methods
+    private void NavigateToProfile()
+    {
+        NavigationManager.NavigateTo("/profile");
+    }
+
+    private void NavigateToSettings()
+    {
+        NavigationManager.NavigateTo("/settings");
+    }
+
+    private async Task Logout()
+    {
     }
 }

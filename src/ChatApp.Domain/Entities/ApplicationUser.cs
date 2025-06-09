@@ -25,5 +25,7 @@ namespace ChatApp.Domain.Entities
         public ICollection<ChatMember> ChatMemberships { get; set; } = new List<ChatMember>();
         public ICollection<MediaFile> UploadedFiles { get; set; } = new List<MediaFile>();
         public ICollection<Chat> CreatedChats { get; set; } = new List<Chat>();
+        public virtual ICollection<Friendship> SentFriendRequests { get; set; } = new List<Friendship>();
+        public virtual ICollection<Friendship> ReceivedFriendRequests { get; set; } = new List<Friendship>();
     }
 }

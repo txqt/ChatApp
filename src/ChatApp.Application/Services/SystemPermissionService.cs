@@ -13,6 +13,7 @@ namespace ChatApp.Application.Services
     {
         // User permissions
         Task<bool> CanUserPerformAction(int userId, AppPermissions permission);
+        Task<bool> CanUserPerformAction(string auth0Id, AppPermissions permission);
         Task<AppPermissions> GetUserPermissions(int userId);
         Task<bool> UpdateUserPermissions(int userId, AppPermissions permissions, int updatedBy);
         Task<bool> GrantUserPermission(int userId, AppPermissions permission, int grantedBy);
@@ -54,6 +55,12 @@ namespace ChatApp.Application.Services
             return userPermissions.HasFlag(permission);
         }
 
+        public async Task<bool> CanUserPerformAction(string auth0Id, AppPermissions permission)
+        {
+            var userPermissions = await GetUserPermissions(auth0Id);
+            return userPermissions.HasFlag(permission);
+        }
+
         public async Task<AppPermissions> GetUserPermissions(int userId)
         {
             var user = await _context.Users
@@ -62,6 +69,40 @@ namespace ChatApp.Application.Services
                     .ThenInclude(ur => ur.Role)
                         .ThenInclude(r => r.RolePermission)
                 .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (user == null)
+                return AppPermissions.None;
+
+            // Bắt đầu với quyền cơ bản
+            var permissions = AppPermissions.BasicUser;
+
+            // Thêm quyền từ user permission (nếu có)
+            if (user.UserPermission != null)
+            {
+                permissions = (AppPermissions)user.UserPermission.PermissionMask;
+            }
+
+            // Thêm quyền từ các role
+            foreach (var userRole in user.UserRoles.Where(ur => ur.Role.IsActive))
+            {
+                if (userRole.Role.RolePermission != null)
+                {
+                    var rolePermissions = (AppPermissions)userRole.Role.RolePermission.PermissionMask;
+                    permissions |= rolePermissions;
+                }
+            }
+
+            return permissions;
+        }
+
+        public async Task<AppPermissions> GetUserPermissions(string auth0Id)
+        {
+            var user = await _context.Users
+                .Include(u => u.UserPermission)
+                .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Role)
+                        .ThenInclude(r => r.RolePermission)
+                .FirstOrDefaultAsync(u => u.Auth0Id == auth0Id);
 
             if (user == null)
                 return AppPermissions.None;
@@ -301,7 +342,7 @@ namespace ChatApp.Application.Services
         private async Task LogAuditAction(int userId, string action, string entityType, int? entityId,
             string? oldValues, string? newValues)
         {
-            _context.AuditLogs.Add(new AuditLog
+            await _context.AuditLogs.AddAsync(new AuditLog
             {
                 UserId = userId,
                 Action = action,
