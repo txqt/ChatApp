@@ -2,6 +2,7 @@
 using ChatApp.Application.Interfaces;
 using ChatApp.Domain.Entities;
 using ChatApp.Domain.Enum;
+using ChatApp.Infrastructure.Services;
 using ChatApp.WebAPI.Controllers;
 using ChatApp.WebAPI.Hubs;
 using Microsoft.AspNetCore.Mvc;
@@ -16,7 +17,7 @@ namespace ChatApp.API.Controllers
         private readonly IWebHostEnvironment _environment;
         private readonly IHubContext<ChatHub> _chatHubContext;
 
-        public MessageController(IApplicationDbContext context, IWebHostEnvironment environment, IHubContext<ChatHub> chatHubContext)
+        public MessageController(IApplicationDbContext context, IWebHostEnvironment environment, IHubContext<ChatHub> chatHubContext, IUserService userService) : base(userService)
         {
             _context = context;
             _environment = environment;

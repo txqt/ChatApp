@@ -9,10 +9,8 @@ namespace ChatApp.WebAPI.Controllers
     [ApiController]
     public class UsersController : BaseController
     {
-        private readonly IUserService _userService;
-        public UsersController(IUserService userService)
+        public UsersController(IUserService userService) : base(userService)
         {
-            _userService = userService;
         }
 
         [HttpPost("register")]

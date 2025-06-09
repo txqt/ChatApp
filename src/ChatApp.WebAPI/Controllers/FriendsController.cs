@@ -11,17 +11,15 @@ namespace ChatApp.WebAPI.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize] // Assuming you're using JWT authentication
-    public class FriendsController : ControllerBase
+    public class FriendsController : BaseController
     {
         private readonly IFriendService _friendService;
         private readonly ILogger<FriendsController> _logger;
-        private readonly IUserService _userService;
 
-        public FriendsController(IFriendService friendService, ILogger<FriendsController> logger, IUserService userService)
+        public FriendsController(IFriendService friendService, ILogger<FriendsController> logger, IUserService userService) : base(userService)
         {
             _friendService = friendService;
             _logger = logger;
-            _userService = userService;
         }
         [HttpGet("search")]
         public async Task<ActionResult<List<UserSearchDto>>> SearchUsers([FromQuery] string searchTerm, [FromQuery] int pageSize = 20, [FromQuery] int page = 1)
@@ -31,11 +29,10 @@ namespace ChatApp.WebAPI.Controllers
                 if (string.IsNullOrWhiteSpace(searchTerm))
                     return BadRequest("Search term cannot be empty");
 
-                var currentUser = await _userService.GetCurrentUserAsync();
-                if (currentUser == null)
+                if (CurrentUser == null)
                     return Unauthorized();
 
-                var users = await _friendService.SearchUsersAsync(searchTerm, currentUser.Id, pageSize, page);
+                var users = await _friendService.SearchUsersAsync(searchTerm, CurrentUserId, pageSize, page);
                 return Ok(users);
             }
             catch (Exception ex)

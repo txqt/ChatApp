@@ -30,6 +30,9 @@ namespace ChatApp.Application.Interfaces
         // Audit
         DbSet<AuditLog> AuditLogs { get; set; }
 
+        // Relationships
+        public DbSet<Friendship> Friendships { get; set; }
+
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }

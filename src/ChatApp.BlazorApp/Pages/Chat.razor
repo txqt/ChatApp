@@ -293,13 +293,13 @@
 
     protected override async Task OnInitializedAsync()
     {
-        allChats = await ChatService.GetUserChatsAsync();
-        filteredChats = allChats;
         ChatService.OnMessageReceived += OnMessageReceived;
         ChatService.OnUserTyping += OnUserTypingReceived;
         ChatService.OnUserStoppedTyping += OnUserStoppedTyping;
         ChatService.OnMessageRead += OnMessageRead;
         await ChatService.StartConnectionAsync();
+        allChats = await ChatService.GetUserChatsAsync();
+        filteredChats = allChats;
     }
 
     private void FilterChats(ChangeEventArgs e)
@@ -498,7 +498,15 @@
         NavigationManager.NavigateTo("/settings");
     }
 
+    [Inject]
+    public NavigationManager Navigation { get; set; }
+
+    [Inject]
+    SignOutSessionStateManager SignOutManager { get; set; }
+
     private async Task Logout()
     {
+        await SignOutManager.SetSignOutState();
+        Navigation.NavigateTo("/authentication/logout");
     }
 }

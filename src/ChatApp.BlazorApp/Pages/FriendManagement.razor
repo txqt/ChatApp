@@ -1,6 +1,8 @@
 ﻿@* Pages/FriendManagement.razor *@
 @page "/friends"
 @inject IJSRuntime JSRuntime
+@inject IChatService ChatService
+@inject NavigationManager NavigationManager
 
 <PageTitle>Quản lý bạn bè</PageTitle>
 
@@ -126,6 +128,8 @@
     {
         await OnStartChat.InvokeAsync(userId);
         await JSRuntime.InvokeVoidAsync("alert", $"Bắt đầu chat với user ID: {userId}");
+        await ChatService.CreateDirectChatAsync(userId);
+        NavigationManager.NavigateTo("/chat", true);
     }
 
     private async Task HandleRequestsChanged()

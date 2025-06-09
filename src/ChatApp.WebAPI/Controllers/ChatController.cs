@@ -1,6 +1,7 @@
 ﻿using ChatApp.Application.Interfaces;
 using ChatApp.Domain.Entities;
 using ChatApp.Domain.Enum;
+using ChatApp.Infrastructure.Services;
 using ChatApp.WebAPI.Controllers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +12,7 @@ namespace ChatApp.WebAPI.Controllers
     {
         private readonly IApplicationDbContext _context;
 
-        public ChatController(IApplicationDbContext context)
+        public ChatController(IApplicationDbContext context, IUserService userService) : base(userService)
         {
             _context = context;
         }
@@ -84,9 +85,11 @@ namespace ChatApp.WebAPI.Controllers
             if (targetUser == null)
                 return NotFound("User not found");
 
+            var currentUser = await _userService.GetCurrentUserAsync();
+
             // Kiểm tra đã có direct chat chưa
             var existingChat = await _context.ChatMembers
-                .Where(cm => cm.UserId == CurrentUserId)
+                .Where(cm => cm.UserId == CurrentUser.Id)
                 .Join(_context.ChatMembers.Where(cm2 => cm2.UserId == request.UserId),
                       cm1 => cm1.ChatId,
                       cm2 => cm2.ChatId,
@@ -103,7 +106,7 @@ namespace ChatApp.WebAPI.Controllers
             var chat = new Chat
             {
                 ChatType = ChatType.Direct,
-                CreatedBy = CurrentUserId,
+                CreatedBy = CurrentUser.Id,
                 IsActive = true
             };
 
@@ -113,7 +116,7 @@ namespace ChatApp.WebAPI.Controllers
             // Add members
             var members = new[]
             {
-                new ChatMember { ChatId = chat.ChatId, UserId = CurrentUserId, Role = ChatMemberRole.Member },
+                new ChatMember { ChatId = chat.ChatId, UserId = CurrentUser.Id, Role = ChatMemberRole.Member },
                 new ChatMember { ChatId = chat.ChatId, UserId = request.UserId, Role = ChatMemberRole.Member }
             };
 
@@ -129,12 +132,14 @@ namespace ChatApp.WebAPI.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            var currentUser = await _userService.GetCurrentUserAsync();
+
             var chat = new Chat
             {
                 ChatType = ChatType.Group,
                 ChatName = request.ChatName,
                 Description = request.Description,
-                CreatedBy = CurrentUserId,
+                CreatedBy = CurrentUser.Id,
                 AllowMembersToAddOthers = request.AllowMembersToAddOthers,
                 AllowMembersToEditInfo = request.AllowMembersToEditInfo,
                 MaxMembers = request.MaxMembers ?? 1000,
@@ -148,7 +153,7 @@ namespace ChatApp.WebAPI.Controllers
             var creatorMember = new ChatMember
             {
                 ChatId = chat.ChatId,
-                UserId = CurrentUserId,
+                UserId = CurrentUser.Id,
                 Role = ChatMemberRole.Admin
             };
             _context.ChatMembers.Add(creatorMember);
@@ -161,7 +166,7 @@ namespace ChatApp.WebAPI.Controllers
                     ChatId = chat.ChatId,
                     UserId = userId,
                     Role = ChatMemberRole.Member,
-                    AddedBy = CurrentUserId
+                    AddedBy = CurrentUser.Id
                 }).ToList();
 
                 _context.ChatMembers.AddRange(members);
@@ -175,9 +180,11 @@ namespace ChatApp.WebAPI.Controllers
         [HttpGet("{chatId}/messages")]
         public async Task<IActionResult> GetChatMessages(int chatId, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
         {
+            var currentUser = await _userService.GetCurrentUserAsync();
+
             // Kiểm tra user có quyền xem chat không
             var membership = await _context.ChatMembers
-                .FirstOrDefaultAsync(cm => cm.ChatId == chatId && cm.UserId == CurrentUserId && cm.IsActive);
+                .FirstOrDefaultAsync(cm => cm.ChatId == chatId && cm.UserId == CurrentUser.Id && cm.IsActive);
 
             if (membership == null)
                 return Forbid("You don't have access to this chat");
