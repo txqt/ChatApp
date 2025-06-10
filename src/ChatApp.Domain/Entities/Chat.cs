@@ -47,8 +47,8 @@ namespace ChatApp.Domain.Entities
                 ChatMemberRole.Owner => ChatPermissions.Owner,
                 ChatMemberRole.Admin => ChatPermissions.Admin,
                 ChatMemberRole.Moderator => ChatPermissions.Moderator,
-                ChatMemberRole.Member => ChatPermissions.BasicUser,
-                _ => ChatPermissions.BasicUser
+                ChatMemberRole.Member => ChatPermissions.BasicMember,
+                _ => ChatPermissions.BasicMember
             };
         }
 

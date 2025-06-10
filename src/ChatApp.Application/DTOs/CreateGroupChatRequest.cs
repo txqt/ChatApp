@@ -1,4 +1,4 @@
-namespace ChatApp.BlazorApp.Models
+namespace ChatApp.Application.DTOs
 {
     public class CreateGroupChatRequest
     {

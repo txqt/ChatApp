@@ -1,4 +1,5 @@
 ﻿using ChatApp.Infrastructure.Services;
+using ChatApp.WebAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 
 namespace ChatApp.WebAPI.Middleware

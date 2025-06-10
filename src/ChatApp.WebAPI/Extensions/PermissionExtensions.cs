@@ -1,9 +1,9 @@
-﻿using ChatApp.Application.Services;
-using ChatApp.Domain.Enum;
+﻿using ChatApp.Domain.Enum;
+using ChatApp.Infrastructure.Services;
 using System;
 using System.Threading.Tasks;
 
-namespace ChatApp.Application.Extensions
+namespace ChatApp.WebAPI.Extensions
 {
     public static class PermissionExtensions
     {
@@ -63,28 +63,24 @@ namespace ChatApp.Application.Extensions
         /// </summary>
         private static readonly Dictionary<AppPermissions, string> _displayNames = new()
         {
-            { AppPermissions.SendMessage, "Gửi tin nhắn" },
+            { AppPermissions.None, "Không có" },
+            { AppPermissions.ViewUsers, "Xem người dùng" },
+            { AppPermissions.CreateUser, "Tạo người dùng mới" },
+            { AppPermissions.EditUser, "Chỉnh sửa người dùng" },
+            { AppPermissions.DeleteUser, "Xóa người dùng" },
+            { AppPermissions.BanUser, "Cấm người dùng" },
+            { AppPermissions.ViewSystemLogs, "Xem nhật ký hệ thống" },
+            { AppPermissions.ManageSystem, "Quản lý hệ thống" },
+            { AppPermissions.ManageRoles, "Quản lý vai trò" },
+            { AppPermissions.ViewAnalytics, "Xem thống kê hệ thống" },
             { AppPermissions.CreateDirectChat, "Tạo cuộc trò chuyện riêng" },
             { AppPermissions.CreateGroup, "Tạo nhóm" },
-            { AppPermissions.JoinGroup, "Tham gia nhóm" },
-            { AppPermissions.UploadFile, "Tải lên tệp" },
-            { AppPermissions.DownloadFile, "Tải xuống tệp" },
-            { AppPermissions.DeleteOwnFile, "Xóa tệp của mình" },
-            { AppPermissions.AddGroupMember, "Thêm thành viên" },
-            { AppPermissions.RemoveGroupMember, "Xóa thành viên" },
-            { AppPermissions.DeleteGroup, "Xóa nhóm" },
-            { AppPermissions.EditGroupInfo, "Chỉnh sửa thông tin nhóm" },
-            { AppPermissions.DeleteOwnMessage, "Xóa tin nhắn của mình" },
-            { AppPermissions.DeleteAnyMessage, "Xóa bất kỳ tin nhắn nào" },
-            { AppPermissions.EditOwnMessage, "Chỉnh sửa tin nhắn của mình" },
-            { AppPermissions.EditAnyMessage, "Chỉnh sửa bất kỳ tin nhắn nào" },
-            { AppPermissions.MuteUser, "Tắt tiếng người dùng" },
-            { AppPermissions.BanUser, "Cấm người dùng" },
-            { AppPermissions.ViewMessageHistory, "Xem lịch sử tin nhắn" },
-            { AppPermissions.ManageUsers, "Quản lý người dùng" },
-            { AppPermissions.ManageRoles, "Quản lý vai trò" },
-            { AppPermissions.ViewSystemLogs, "Xem nhật ký hệ thống" },
-            { AppPermissions.ManageSystem, "Quản lý hệ thống" }
+            { AppPermissions.ViewAllChats, "Xem tất cả cuộc trò chuyện" },
+            { AppPermissions.DeleteAnyChat, "Xóa bất kỳ cuộc trò chuyện nào" },
+            { AppPermissions.BasicUser, "Người dùng cơ bản" },
+            { AppPermissions.Moderator, "Điều hành viên" },
+            { AppPermissions.Administrator, "Quản trị viên" },
+            { AppPermissions.SuperAdmin, "Super Admin" }
         };
 
         public static List<string> GetDisplayNames(this AppPermissions permissions)
@@ -140,7 +136,7 @@ namespace ChatApp.Application.Extensions
         {
             return permission.HasFlag(AppPermissions.ManageSystem) ||
                    permission.HasFlag(AppPermissions.SuperAdmin) ||
-                   permission.HasFlag(AppPermissions.ManageUsers) ||
+                   permission.HasFlag(AppPermissions.EditUser) ||
                    permission.HasFlag(AppPermissions.ManageRoles);
         }
 

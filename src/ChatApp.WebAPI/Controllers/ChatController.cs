@@ -1,8 +1,9 @@
-﻿using ChatApp.Application.Interfaces;
+﻿using ChatApp.Application.DTOs;
+using ChatApp.Application.Interfaces;
 using ChatApp.Domain.Entities;
 using ChatApp.Domain.Enum;
 using ChatApp.Infrastructure.Services;
-using ChatApp.WebAPI.Controllers;
+using ChatApp.WebAPI.Attributes;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,10 +12,12 @@ namespace ChatApp.WebAPI.Controllers
     public class ChatController : BaseController
     {
         private readonly IApplicationDbContext _context;
+        private readonly IChatPermissionService _chatPermissionService;
 
-        public ChatController(IApplicationDbContext context, IUserService userService) : base(userService)
+        public ChatController(IApplicationDbContext context, IUserService userService, IChatPermissionService chatPermissionService) : base(userService)
         {
             _context = context;
+            _chatPermissionService = chatPermissionService;
         }
 
         [HttpGet]
@@ -75,6 +78,7 @@ namespace ChatApp.WebAPI.Controllers
         }
 
         [HttpPost("direct")]
+        [RequirePermission(AppPermissions.CreateDirectChat)]
         public async Task<IActionResult> CreateDirectChat([FromBody] CreateDirectChatRequest request)
         {
             if (!ModelState.IsValid)
@@ -127,6 +131,7 @@ namespace ChatApp.WebAPI.Controllers
         }
 
         [HttpPost("group")]
+        [RequirePermission(AppPermissions.CreateGroup)]
         public async Task<IActionResult> CreateGroupChat([FromBody] CreateGroupChatRequest request)
         {
             if (!ModelState.IsValid)
@@ -180,14 +185,12 @@ namespace ChatApp.WebAPI.Controllers
         [HttpGet("{chatId}/messages")]
         public async Task<IActionResult> GetChatMessages(int chatId, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
         {
-            var currentUser = await _userService.GetCurrentUserAsync();
+            if(CurrentUser == null)
+                return Unauthorized("You must be logged in to access chat messages");
 
-            // Kiểm tra user có quyền xem chat không
-            var membership = await _context.ChatMembers
-                .FirstOrDefaultAsync(cm => cm.ChatId == chatId && cm.UserId == CurrentUser.Id && cm.IsActive);
-
-            if (membership == null)
-                return Forbid("You don't have access to this chat");
+            var permissions = await _chatPermissionService.CanUserPerformAction(CurrentUser, chatId, ChatPermissions.ViewMessageHistory);
+            if (!permissions)
+                return Forbid("You don't have permission to view messages in this chat");
 
             var messages = await _context.Messages
                 .Where(m => m.ChatId == chatId && !m.IsDeleted)
@@ -235,20 +238,5 @@ namespace ChatApp.WebAPI.Controllers
 
             return Ok(messages.OrderBy(m => m.CreatedAt));
         }
-    }
-
-    public class CreateDirectChatRequest
-    {
-        public int UserId { get; set; }
-    }
-
-    public class CreateGroupChatRequest
-    {
-        public string ChatName { get; set; } = string.Empty;
-        public string? Description { get; set; }
-        public List<int>? MemberIds { get; set; }
-        public bool AllowMembersToAddOthers { get; set; } = true;
-        public bool AllowMembersToEditInfo { get; set; } = false;
-        public int? MaxMembers { get; set; }
     }
 }

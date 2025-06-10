@@ -36,7 +36,7 @@ namespace ChatApp.Infrastructure.Data
             {
             new { Name = "SuperAdmin", Description = "Super Administrator with all permissions", Permission = AppPermissions.SuperAdmin },
             new { Name = "Admin", Description = "Administrator", Permission = AppPermissions.Administrator },
-            new { Name = "Moderator", Description = "Group Moderator", Permission = AppPermissions.GroupModerator },
+            new { Name = "Moderator", Description = "Group Moderator", Permission = AppPermissions.Moderator },
             new { Name = "User", Description = "Basic User", Permission = AppPermissions.BasicUser }
         };
 

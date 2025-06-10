@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace ChatApp.Application.Services
+namespace ChatApp.Infrastructure.Services
 {
     public interface ISystemPermissionService
     {
@@ -322,7 +322,7 @@ namespace ChatApp.Application.Services
 
         public async Task<bool> CanManageUsers(int userId)
         {
-            return await CanUserPerformAction(userId, AppPermissions.ManageUsers);
+            return await CanUserPerformAction(userId, AppPermissions.EditUser);
         }
 
         public async Task<bool> CanManageRoles(int userId)

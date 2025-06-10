@@ -1,5 +1,3 @@
-using ChatApp.Application.Extensions;
-using ChatApp.Application.Services;
 using ChatApp.Domain.Entities;
 using ChatApp.Domain.Enum;
 using ChatApp.Infrastructure.Services;

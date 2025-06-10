@@ -3,26 +3,61 @@ using ChatApp.Domain.Entities;
 using ChatApp.Domain.Enum;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
+using System.Net.Http;
 using System.Security.Claims;
+using System.Text;
 
-namespace ChatApp.Infrastructure.Services
+namespace ChatApp.WebAPI.Services
 {
     public interface IAuth0Service
     {
         Task<ApplicationUser> SyncUserAsync(ClaimsPrincipal claimsPrincipal);
+        Task<string> GetManagementTokenAsync();
     }
 
     public class Auth0Service : IAuth0Service
     {
         private readonly IApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly HttpClient _httpClient;
+        private readonly IConfiguration _configuration;
 
         public Auth0Service(
             IApplicationDbContext context,
-            UserManager<ApplicationUser> userManager)
+            UserManager<ApplicationUser> userManager,
+            IConfiguration configuration,
+            HttpClient httpClient)
         {
             _context = context;
             _userManager = userManager;
+            _configuration = configuration;
+            _httpClient = httpClient;
+        }
+
+        public async Task<string> GetManagementTokenAsync()
+        {
+            DotNetEnv.Env.Load();
+
+            var domain = Environment.GetEnvironmentVariable("Auth0__Authority");
+            var clientId = Environment.GetEnvironmentVariable("Auth0__ClientId");
+            var clientSecret = Environment.GetEnvironmentVariable("Auth0__ClientSecret");
+            var audience = $"https://{domain}/api/v2/";
+
+            var response = await _httpClient.PostAsync($"https://{domain}/oauth/token", new StringContent(JsonConvert.SerializeObject(new
+            {
+                client_id = clientId,
+                client_secret = clientSecret,
+                audience = audience,
+                grant_type = "client_credentials"
+            }), Encoding.UTF8, "application/json"));
+
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadAsStringAsync();
+            dynamic result = JsonConvert.DeserializeObject(json);
+            return result.access_token;
         }
 
         public async Task<ApplicationUser> SyncUserAsync(ClaimsPrincipal claimsPrincipal)
@@ -76,11 +111,10 @@ namespace ChatApp.Infrastructure.Services
             // Tạo user mới
             var newUser = new ApplicationUser
             {
-                UserName = email,
-                NormalizedUserName = email?.ToUpper(),
+                UserName = name,
+                NormalizedUserName = name?.ToUpper(),
                 Email = email,
                 NormalizedEmail = email?.ToUpper(),
-                EmailConfirmed = true, // Auth0 đã verify
                 DisplayName = name ?? email ?? "Unknown User",
                 Auth0Id = auth0Id,
                 AvatarUrl = picture,

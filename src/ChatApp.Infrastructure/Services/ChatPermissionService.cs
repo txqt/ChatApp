@@ -4,13 +4,15 @@ using ChatApp.Domain.Enum;
 using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
 
-namespace ChatApp.Application.Services
+namespace ChatApp.Infrastructure.Services
 {
     public interface IChatPermissionService
     {
         Task<bool> CanUserPerformAction(int userId, int chatId, ChatPermissions permission);
+        Task<bool> CanUserPerformAction(ApplicationUser user, int chatId, ChatPermissions permission);
         Task<bool> UpdateRolePermissions(int chatId, ChatMemberRole role, ChatPermissions permissions, int updatedBy);
         Task<ChatPermissions> GetUserPermissions(int userId, int chatId);
+        Task<ChatPermissions> GetUserPermissions(ApplicationUser user, int chatId);
         Task<ChatPermissions> GetRolePermissions(int chatId, ChatMemberRole role);
     }
 
@@ -29,10 +31,34 @@ namespace ChatApp.Application.Services
             return userPermissions.HasFlag(permission);
         }
 
+        public async Task<bool> CanUserPerformAction(ApplicationUser user, int chatId, ChatPermissions permission)
+        {
+            var userPermissions = await GetUserPermissions(user, chatId);
+            return userPermissions.HasFlag(permission);
+        }
+
         public async Task<ChatPermissions> GetUserPermissions(int userId, int chatId)
         {
             var member = await _context.ChatMembers
                 .FirstOrDefaultAsync(cm => cm.UserId == userId && cm.ChatId == chatId && cm.IsActive);
+
+            if (member == null)
+                return ChatPermissions.None;
+
+            var chat = await _context.Chats
+                .Include(c => c.RolePermissions)
+                .FirstOrDefaultAsync(c => c.ChatId == chatId);
+
+            if (chat == null)
+                return ChatPermissions.None;
+
+            return chat.GetRolePermissions(member.Role);
+        }
+
+        public async Task<ChatPermissions> GetUserPermissions(ApplicationUser user, int chatId)
+        {
+            var member = await _context.ChatMembers
+                .FirstOrDefaultAsync(cm => cm.UserId == user.Id && cm.ChatId == chatId && cm.IsActive);
 
             if (member == null)
                 return ChatPermissions.None;

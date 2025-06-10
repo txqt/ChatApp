@@ -9,19 +9,21 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
-namespace ChatApp.API.Controllers
+namespace ChatApp.WebAPI.Controllers
 {
     public class MessageController : BaseController
     {
         private readonly IApplicationDbContext _context;
         private readonly IWebHostEnvironment _environment;
         private readonly IHubContext<ChatHub> _chatHubContext;
+        private readonly IChatPermissionService _chatPermissionService;
 
-        public MessageController(IApplicationDbContext context, IWebHostEnvironment environment, IHubContext<ChatHub> chatHubContext, IUserService userService) : base(userService)
+        public MessageController(IApplicationDbContext context, IWebHostEnvironment environment, IHubContext<ChatHub> chatHubContext, IUserService userService, IChatPermissionService chatPermissionService) : base(userService)
         {
             _context = context;
             _environment = environment;
             _chatHubContext = chatHubContext;
+            _chatPermissionService = chatPermissionService;
         }
 
         [HttpPost]
@@ -30,12 +32,9 @@ namespace ChatApp.API.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            // Kiểm tra user có quyền gửi tin nhắn không
-            var membership = await _context.ChatMembers
-                .FirstOrDefaultAsync(cm => cm.ChatId == request.ChatId && cm.UserId == CurrentUserId && cm.IsActive);
-
-            if (membership == null)
-                return Forbid("You don't have permission to send messages to this chat");
+            var permission = await _chatPermissionService.CanUserPerformAction(CurrentUserId, request.ChatId, ChatPermissions.SendMessages);
+            if(!permission)
+                return Forbid("You don't have permission to send messages in this chat");
 
             // Validate reply message nếu có
             if (request.ReplyToMessageId.HasValue)
@@ -88,6 +87,10 @@ namespace ChatApp.API.Controllers
             if (message == null)
                 return NotFound("Message not found or you don't have permission to edit");
 
+            var permission = await _chatPermissionService.CanUserPerformAction(CurrentUserId, message.ChatId, ChatPermissions.EditOwnMessages | ChatPermissions.EditAnyMessage);
+            if (!permission)
+                return Forbid("You don't have permission");
+
             // Chỉ cho phép edit trong 24 giờ
             if (DateTime.UtcNow - message.CreatedAt > TimeSpan.FromHours(24))
                 return BadRequest("Cannot edit message after 24 hours");
@@ -114,17 +117,9 @@ namespace ChatApp.API.Controllers
                 return NotFound("Message not found");
 
             // Kiểm tra quyền xóa
-            bool canDelete = message.SenderId == CurrentUserId;
-
-            if (deleteForEveryone)
-            {
-                // Chỉ admin/creator có thể xóa cho mọi người
-                var membership = message.Chat.Members.FirstOrDefault(m => m.UserId == CurrentUserId);
-                canDelete = canDelete || (membership?.Role == ChatMemberRole.Admin);
-            }
-
-            if (!canDelete)
-                return Forbid("You don't have permission to delete this message");
+            var permission = await _chatPermissionService.CanUserPerformAction(CurrentUserId, message.ChatId, ChatPermissions.DeleteAnyMessage | ChatPermissions.DeleteOwnMessages);
+            if (!permission)
+                return Forbid("You don't have permission");
 
             message.IsDeleted = true;
             message.DeletedAt = DateTime.UtcNow;
@@ -209,12 +204,9 @@ namespace ChatApp.API.Controllers
             if (string.IsNullOrWhiteSpace(query))
                 return BadRequest("Search query is required");
 
-            // Kiểm tra quyền truy cập chat
-            var membership = await _context.ChatMembers
-                .FirstOrDefaultAsync(cm => cm.ChatId == chatId && cm.UserId == CurrentUserId && cm.IsActive);
-
-            if (membership == null)
-                return Forbid("You don't have access to this chat");
+            var permission = await _chatPermissionService.CanUserPerformAction(CurrentUserId, chatId, ChatPermissions.ViewMessageHistory | ChatPermissions.ViewMessages);
+            if (!permission)
+                return Forbid("You don't have permission");
 
             var messages = await _context.Messages
                 .Where(m => m.ChatId == chatId && !m.IsDeleted && m.Content.Contains(query))
@@ -249,12 +241,11 @@ namespace ChatApp.API.Controllers
             if (originalMessage == null)
                 return NotFound("Message not found");
 
-            // Kiểm tra quyền truy cập chat gốc
-            var sourceMembership = await _context.ChatMembers
-                .FirstOrDefaultAsync(cm => cm.ChatId == originalMessage.ChatId && cm.UserId == CurrentUserId && cm.IsActive);
+            var neededPermissions = ChatPermissions.ForwardMessages | ChatPermissions.SendMessages;
 
-            if (sourceMembership == null)
-                return Forbid("You don't have access to the source chat");
+            var permission = await _chatPermissionService.CanUserPerformAction(CurrentUserId, originalMessage.ChatId, neededPermissions);
+            if (!permission)
+                return Forbid("You don't have permission");
 
             var forwardedMessages = new List<object>();
 

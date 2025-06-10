@@ -11,35 +11,57 @@ namespace ChatApp.Domain.Enum
     {
         None = 0,
 
-        // Basic permissions
-        ViewMessages = 1 << 0,      // Xem tin nhắn
-        SendMessages = 1 << 1,      // Gửi tin nhắn
-        SendMedia = 1 << 2,         // Gửi file/hình ảnh
-        DeleteOwnMessages = 1 << 3, // Xóa tin nhắn của mình
-        EditOwnMessages = 1 << 4,   // Sửa tin nhắn của mình
+        // ===== BASIC CHAT ACTIONS =====
+        ViewMessages = 1L << 0,       // Xem tin nhắn
+        SendMessages = 1L << 1,       // Gửi tin nhắn text
+        SendMedia = 1L << 2,          // Gửi file/hình ảnh
+        SendVoice = 1L << 3,          // Gửi voice message
+        React = 1L << 4,              // Thả react tin nhắn
+        ForwardMessages = 1L << 5,    // Chuyển tiếp tin nhắn
 
-        // Moderation permissions
-        DeleteAnyMessage = 1 << 5,  // Xóa tin nhắn của người khác
-        PinMessages = 1 << 6,       // Ghim tin nhắn
+        // ===== MESSAGE MANAGEMENT =====
+        DeleteOwnMessages = 1L << 6,  // Xóa tin nhắn của mình
+        EditOwnMessages = 1L << 7,    // Sửa tin nhắn của mình
+        DeleteAnyMessage = 1L << 8,   // Xóa tin nhắn của người khác
+        EditAnyMessage = 1L << 9,     // Sửa tin nhắn của người khác
+        PinMessages = 1L << 10,       // Ghim tin nhắn
 
-        // Member management
-        AddMembers = 1 << 7,        // Thêm thành viên
-        RemoveMembers = 1 << 8,     // Xóa thành viên
-        MuteMembers = 1 << 9,       // Tắt tiếng thành viên
+        // ===== MEMBER MANAGEMENT =====
+        ViewMembers = 1L << 11,       // Xem danh sách thành viên
+        AddMembers = 1L << 12,        // Thêm thành viên
+        RemoveMembers = 1L << 13,     // Kick thành viên
+        MuteMembers = 1L << 14,       // Tắt tiếng thành viên
+        ChangeNicknames = 1L << 15,   // Đổi nickname thành viên
 
-        // Group management
-        EditGroupInfo = 1 << 10,    // Sửa thông tin nhóm
-        ManageRoles = 1 << 11,      // Quản lý role
+        // ===== GROUP SETTINGS =====
+        EditGroupInfo = 1L << 16,     // Sửa tên, avatar, mô tả nhóm
+        ManageRoles = 1L << 17,       // Tạo/sửa/xóa role trong nhóm
+        ManagePermissions = 1L << 18, // Phân quyền cho thành viên/role
 
-        // Admin permissions
-        ManagePermissions = 1 << 12, // Quản lý quyền
-        DeleteGroup = 1 << 13,       // Xóa nhóm
+        // ===== ADVANCED FEATURES =====
+        CreatePolls = 1L << 19,       // Tạo poll/bình chọn
+        ViewMessageHistory = 1L << 20, // Xem lịch sử tin nhắn đầy đủ
+        ExportChat = 1L << 21,        // Export dữ liệu chat
 
-        // Convenience combinations
-        BasicUser = ViewMessages | SendMessages | SendMedia | DeleteOwnMessages | EditOwnMessages,
-        Moderator = BasicUser | DeleteAnyMessage | PinMessages | MuteMembers,
-        Admin = Moderator | AddMembers | RemoveMembers | EditGroupInfo | ManageRoles,
+        // ===== DESTRUCTIVE ACTIONS =====
+        DeleteGroup = 1L << 22,       // Xóa toàn bộ nhóm
+
+        // ===== PREDEFINED ROLE COMBINATIONS =====
+        ReadOnly = ViewMessages | ViewMembers,
+
+        BasicMember = ViewMessages | SendMessages | SendMedia | React |
+                     DeleteOwnMessages | EditOwnMessages | ViewMembers | ForwardMessages,
+
+        ActiveMember = BasicMember | SendVoice | CreatePolls,
+
+        Moderator = ActiveMember | DeleteAnyMessage | PinMessages |
+                   MuteMembers | ChangeNicknames | ViewMessageHistory,
+
+        Admin = Moderator | AddMembers | RemoveMembers | EditGroupInfo |
+               ManageRoles | EditAnyMessage | ExportChat,
+
         Owner = Admin | ManagePermissions | DeleteGroup,
+
         All = long.MaxValue
     }
 }

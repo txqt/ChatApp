@@ -1,4 +1,5 @@
-﻿using ChatApp.BlazorApp.Models;
+﻿using ChatApp.Application.DTOs;
+using ChatApp.BlazorApp.Models;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 using Microsoft.AspNetCore.SignalR.Client;
 using System.Net.Http.Json;
