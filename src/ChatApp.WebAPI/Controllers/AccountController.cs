@@ -1,7 +1,9 @@
 ﻿using Auth0.ManagementApi;
 using Auth0.ManagementApi.Models;
 using ChatApp.Application.DTOs;
+using ChatApp.Domain.Enum;
 using ChatApp.Infrastructure.Services;
+using ChatApp.WebAPI.Attributes;
 using ChatApp.WebAPI.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -23,10 +25,11 @@ namespace ChatApp.WebAPI.Controllers
         }
 
         [HttpPatch("update-email")]
+        [RequirePermission(AppPermissions.EditOwnProfile)]
         public async Task<IActionResult> UpdateEmail([FromBody] EmailUpdateModel model)
         {
             if (CurrentUser == null)
-                return Unauthorized("You must be logged in to access chat messages");
+                return Unauthorized("You must be logged");
 
             var request = new UserUpdateRequest
             {
