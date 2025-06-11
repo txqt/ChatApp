@@ -9,7 +9,7 @@ namespace ChatApp.Application.DTOs
 {
     public class UserSearchDto
     {
-        public int Id { get; set; }
+        public string Id { get; set; }
         public string UserName { get; set; } = string.Empty;
         public string DisplayName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;

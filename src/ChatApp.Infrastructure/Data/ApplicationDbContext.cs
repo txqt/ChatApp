@@ -15,12 +15,12 @@ namespace ChatApp.Infrastructure.Data
     public class ApplicationDbContext : IdentityDbContext<
         ApplicationUser,
         ApplicationRole,
-        int,
-        IdentityUserClaim<int>,
+        string,
+        IdentityUserClaim<string>,
         ApplicationUserRole,
-        IdentityUserLogin<int>,
-        IdentityRoleClaim<int>,
-        IdentityUserToken<int>>, IApplicationDbContext
+        IdentityUserLogin<string>,
+        IdentityRoleClaim<string>,
+        IdentityUserToken<string>>, IApplicationDbContext
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {
@@ -84,10 +84,10 @@ namespace ChatApp.Infrastructure.Data
             });
 
             // Rename default Identity tables
-            modelBuilder.Entity<IdentityUserClaim<int>>().ToTable("UserClaims");
-            modelBuilder.Entity<IdentityUserLogin<int>>().ToTable("UserLogins");
-            modelBuilder.Entity<IdentityUserToken<int>>().ToTable("UserTokens");
-            modelBuilder.Entity<IdentityRoleClaim<int>>().ToTable("RoleClaims");
+            modelBuilder.Entity<IdentityUserClaim<string>>().ToTable("UserClaims");
+            modelBuilder.Entity<IdentityUserLogin<string>>().ToTable("UserLogins");
+            modelBuilder.Entity<IdentityUserToken<string>>().ToTable("UserTokens");
+            modelBuilder.Entity<IdentityRoleClaim<string>>().ToTable("RoleClaims");
 
             // Configure Permission System
             modelBuilder.Entity<UserPermission>(entity =>

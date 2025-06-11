@@ -15,7 +15,7 @@ namespace ChatApp.Infrastructure.Services
     public interface IUserService
     {
         public Task EnsureUserExistsAsync(UserCreateDto dto);
-        Task<ApplicationUser?> GetUserByAuth0IdAsync(string auth0Id);
+        Task<ApplicationUser?> GetUserByIdAsync(string auth0Id);
         Task<ApplicationUser?> GetCurrentUserAsync();
     }
     public class UserService : IUserService
@@ -33,13 +33,13 @@ namespace ChatApp.Infrastructure.Services
         {
             var existing = await _db.Users
                 .AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Auth0Id == dto.Auth0Id);
+                .FirstOrDefaultAsync(u => u.Id == dto.Auth0Id);
 
             if (existing is null)
             {
                 var newUser = new ApplicationUser
                 {
-                    Auth0Id = dto.Auth0Id,
+                    Id = dto.Auth0Id,
                     Email = dto.Email,
                     DisplayName = dto.Name,
                     CreatedAt = DateTime.UtcNow
@@ -70,17 +70,17 @@ namespace ChatApp.Infrastructure.Services
             if (string.IsNullOrEmpty(auth0Id))
                 return null;
 
-            _cacheUser = await GetUserByAuth0IdAsync(auth0Id);
+            _cacheUser = await GetUserByIdAsync(auth0Id);
             return _cacheUser;
         }
 
-        public async Task<ApplicationUser?> GetUserByAuth0IdAsync(string auth0Id)
+        public async Task<ApplicationUser?> GetUserByIdAsync(string auth0Id)
         {
             return await _db.Users
                 .Include(u => u.UserRoles)
                     .ThenInclude(ur => ur.Role)
                 .Include(u => u.UserPermission)
-                .FirstOrDefaultAsync(u => u.Auth0Id == auth0Id);
+                .FirstOrDefaultAsync(u => u.Id == auth0Id);
         }
     }
 }

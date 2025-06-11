@@ -8,10 +8,10 @@ namespace ChatApp.Infrastructure.Services
 {
     public interface IChatPermissionService
     {
-        Task<bool> CanUserPerformAction(int userId, int chatId, ChatPermissions permission);
+        Task<bool> CanUserPerformAction(string userId, int chatId, ChatPermissions permission);
         Task<bool> CanUserPerformAction(ApplicationUser user, int chatId, ChatPermissions permission);
-        Task<bool> UpdateRolePermissions(int chatId, ChatMemberRole role, ChatPermissions permissions, int updatedBy);
-        Task<ChatPermissions> GetUserPermissions(int userId, int chatId);
+        Task<bool> UpdateRolePermissions(int chatId, ChatMemberRole role, ChatPermissions permissions, string updatedBy);
+        Task<ChatPermissions> GetUserPermissions(string userId, int chatId);
         Task<ChatPermissions> GetUserPermissions(ApplicationUser user, int chatId);
         Task<ChatPermissions> GetRolePermissions(int chatId, ChatMemberRole role);
     }
@@ -25,7 +25,7 @@ namespace ChatApp.Infrastructure.Services
             _context = context;
         }
 
-        public async Task<bool> CanUserPerformAction(int userId, int chatId, ChatPermissions permission)
+        public async Task<bool> CanUserPerformAction(string userId, int chatId, ChatPermissions permission)
         {
             var userPermissions = await GetUserPermissions(userId, chatId);
             return userPermissions.HasFlag(permission);
@@ -37,7 +37,7 @@ namespace ChatApp.Infrastructure.Services
             return userPermissions.HasFlag(permission);
         }
 
-        public async Task<ChatPermissions> GetUserPermissions(int userId, int chatId)
+        public async Task<ChatPermissions> GetUserPermissions(string userId, int chatId)
         {
             var member = await _context.ChatMembers
                 .FirstOrDefaultAsync(cm => cm.UserId == userId && cm.ChatId == chatId && cm.IsActive);
@@ -82,7 +82,7 @@ namespace ChatApp.Infrastructure.Services
             return chat?.GetRolePermissions(role) ?? ChatPermissions.None;
         }
 
-        public async Task<bool> UpdateRolePermissions(int chatId, ChatMemberRole role, ChatPermissions permissions, int updatedBy)
+        public async Task<bool> UpdateRolePermissions(int chatId, ChatMemberRole role, ChatPermissions permissions, string updatedBy)
         {
             // Kiểm tra quyền của người cập nhật
             var canManage = await CanUserPerformAction(updatedBy, chatId, ChatPermissions.ManagePermissions);

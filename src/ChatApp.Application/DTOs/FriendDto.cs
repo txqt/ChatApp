@@ -8,7 +8,7 @@ namespace ChatApp.Application.DTOs
 {
     public class FriendDto
     {
-        public int Id { get; set; }
+        public string Id { get; set; }
         public string UserName { get; set; } = string.Empty;
         public string DisplayName { get; set; } = string.Empty;
         public string Avatar { get; set; } = string.Empty;

@@ -250,7 +250,7 @@ namespace ChatApp.WebAPI.Hubs
                 throw new UnauthorizedAccessException("User is not authenticated");
             }
 
-            var currentUser = await _userService.GetUserByAuth0IdAsync(auth0Id);
+            var currentUser = await _userService.GetUserByIdAsync(auth0Id);
             if (currentUser is null)
             {
                 throw new UnauthorizedAccessException("User is not authenticated");

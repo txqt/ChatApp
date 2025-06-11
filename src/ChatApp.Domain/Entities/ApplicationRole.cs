@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace ChatApp.Domain.Entities
 {
-    public class ApplicationRole : IdentityRole<int>
+    public class ApplicationRole : IdentityRole<string>
     {
         public string Description { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;

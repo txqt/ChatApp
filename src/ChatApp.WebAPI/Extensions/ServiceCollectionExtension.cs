@@ -30,22 +30,7 @@ namespace ChatApp.WebAPI.Extensions
 
             services.AddScoped<IAuth0Service, Auth0Service>();
 
-            services.AddHttpClient("Auth0", client =>
-            {
-                client.BaseAddress = new Uri(Environment.GetEnvironmentVariable("Auth0__Authority")); // API URL
-            });
-
-            services.AddScoped(sp =>
-                sp.GetRequiredService<IHttpClientFactory>().CreateClient("Auth0"));
-
-            services.AddSingleton(sp =>
-            {
-                var domain = Environment.GetEnvironmentVariable("Auth0__Authority");
-                var tokenService = sp.GetRequiredService<Auth0Service>();
-                var token = tokenService.GetManagementTokenAsync().Result;
-
-                return new ManagementApiClient(token, new Uri($"https://{domain}/api/v2"));
-            });
+            services.AddHttpClient();
             return services;
         }
     }

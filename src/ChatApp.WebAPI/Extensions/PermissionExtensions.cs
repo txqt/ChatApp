@@ -11,7 +11,7 @@ namespace ChatApp.WebAPI.Extensions
         /// Kiểm tra chat permission
         /// </summary>
         public static async Task<bool> HasChatPermission(this IChatPermissionService permissionService,
-            int userId, int chatId, ChatPermissions permission)
+            string userId, int chatId, ChatPermissions permission)
         {
             return await permissionService.CanUserPerformAction(userId, chatId, permission);
         }
@@ -20,7 +20,7 @@ namespace ChatApp.WebAPI.Extensions
         /// Toggle permission on/off
         /// </summary>
         public static async Task<bool> ToggleSystemPermission(this ISystemPermissionService permissionService,
-            int userId, AppPermissions permission, int updatedBy)
+            string userId, AppPermissions permission, string updatedBy)
         {
             var currentPermissions = await permissionService.GetUserPermissions(userId);
 
@@ -40,7 +40,7 @@ namespace ChatApp.WebAPI.Extensions
         /// Toggle chat role permission
         /// </summary>
         public static async Task<bool> ToggleChatRolePermission(this IChatPermissionService permissionService,
-            int chatId, ChatMemberRole role, ChatPermissions permission, int updatedBy)
+            int chatId, ChatMemberRole role, ChatPermissions permission, string updatedBy)
         {
             var currentPermissions = await permissionService.GetRolePermissions(chatId, role);
 

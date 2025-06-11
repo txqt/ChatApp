@@ -10,10 +10,10 @@ namespace ChatApp.Domain.Entities
     public class ChatMember
     {
         public int ChatId { get; set; }
-        public int UserId { get; set; }
+        public string UserId { get; set; }
         public ChatMemberRole Role { get; set; } = ChatMemberRole.Member;
         public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
-        public int? AddedBy { get; set; }
+        public string? AddedBy { get; set; }
         public bool IsActive { get; set; } = true;
         public DateTime? LeftAt { get; set; }
         public bool IsMuted { get; set; } = false;

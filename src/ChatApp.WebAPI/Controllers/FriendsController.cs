@@ -51,7 +51,7 @@ namespace ChatApp.WebAPI.Controllers
                 if (currentUser == null)
                     return Unauthorized();
 
-                if (request.ReceiverId == 0)
+                if (request.ReceiverId == null)
                     return BadRequest("Receiver ID is required");
 
                 var success = await _friendService.SendFriendRequestAsync(currentUser.Id, request.ReceiverId);
@@ -115,7 +115,7 @@ namespace ChatApp.WebAPI.Controllers
         }
 
         [HttpDelete("remove/{friendId}")]
-        public async Task<ActionResult> RemoveFriend(int friendId)
+        public async Task<ActionResult> RemoveFriend(string friendId)
         {
             try
             {
@@ -195,7 +195,7 @@ namespace ChatApp.WebAPI.Controllers
         }
 
         [HttpPost("block/{userId}")]
-        public async Task<ActionResult> BlockUser(int userId)
+        public async Task<ActionResult> BlockUser(string userId)
         {
             try
             {
@@ -218,7 +218,7 @@ namespace ChatApp.WebAPI.Controllers
         }
 
         [HttpPost("unblock/{userId}")]
-        public async Task<ActionResult> UnblockUser(int userId)
+        public async Task<ActionResult> UnblockUser(string userId)
         {
             try
             {

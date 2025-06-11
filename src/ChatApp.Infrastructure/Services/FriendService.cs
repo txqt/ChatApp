@@ -15,16 +15,16 @@ namespace ChatApp.Infrastructure.Services
     // Services/IFriendService.cs
     public interface IFriendService
     {
-        Task<List<UserSearchDto>> SearchUsersAsync(string  searchTerm, int currentUserId, int pageSize = 20, int page = 1);
-        Task<bool> SendFriendRequestAsync(int requesterId, int receiverId);
-        Task<bool> AcceptFriendRequestAsync(string friendshipId, int currentUserId);
-        Task<bool> DeclineFriendRequestAsync(string friendshipId, int currentUserId);
-        Task<bool> RemoveFriendAsync(int friendId, int currentUserId);
-        Task<List<FriendRequestDto>> GetPendingFriendRequestsAsync(int userId);
-        Task<List<FriendRequestDto>> GetSentFriendRequestsAsync(int userId);
-        Task<List<FriendDto>> GetFriendsAsync(int userId);
-        Task<bool> BlockUserAsync(int blockerId, int blockedId);
-        Task<bool> UnblockUserAsync(int blockerId, int blockedId);
+        Task<List<UserSearchDto>> SearchUsersAsync(string searchTerm, string currentUserId, int pageSize = 20, int page = 1);
+        Task<bool> SendFriendRequestAsync(string requesterId, string receiverId);
+        Task<bool> AcceptFriendRequestAsync(string friendshipId, string currentUserId);
+        Task<bool> DeclineFriendRequestAsync(string friendshipId, string currentUserId);
+        Task<bool> RemoveFriendAsync(string friendId, string currentUserId);
+        Task<List<FriendRequestDto>> GetPendingFriendRequestsAsync(string userId);
+        Task<List<FriendRequestDto>> GetSentFriendRequestsAsync(string userId);
+        Task<List<FriendDto>> GetFriendsAsync(string userId);
+        Task<bool> BlockUserAsync(string blockerId, string blockedId);
+        Task<bool> UnblockUserAsync(string blockerId, string blockedId);
     }
 
     // Services/FriendService.cs
@@ -39,7 +39,7 @@ namespace ChatApp.Infrastructure.Services
             _logger = logger;
         }
 
-        public async Task<List<UserSearchDto>> SearchUsersAsync(string searchTerm, int currentUserId, int pageSize = 20, int page = 1)
+        public async Task<List<UserSearchDto>> SearchUsersAsync(string searchTerm, string currentUserId, int pageSize = 20, int page = 1)
         {
             try
             {
@@ -89,7 +89,7 @@ namespace ChatApp.Infrastructure.Services
             }
         }
 
-        public async Task<bool> SendFriendRequestAsync(int requesterId, int receiverId)
+        public async Task<bool> SendFriendRequestAsync(string requesterId, string receiverId)
         {
             try
             {
@@ -129,7 +129,7 @@ namespace ChatApp.Infrastructure.Services
             }
         }
 
-        public async Task<bool> AcceptFriendRequestAsync(string friendshipId, int  currentUserId)
+        public async Task<bool> AcceptFriendRequestAsync(string friendshipId, string  currentUserId)
         {
             try
             {
@@ -152,7 +152,7 @@ namespace ChatApp.Infrastructure.Services
             }
         }
 
-        public async Task<bool> DeclineFriendRequestAsync(string friendshipId, int currentUserId)
+        public async Task<bool> DeclineFriendRequestAsync(string friendshipId, string currentUserId)
         {
             try
             {
@@ -173,7 +173,7 @@ namespace ChatApp.Infrastructure.Services
             }
         }
 
-        public async Task<bool> RemoveFriendAsync(int friendId, int currentUserId)
+        public async Task<bool> RemoveFriendAsync(string friendId, string currentUserId)
         {
             try
             {
@@ -197,7 +197,7 @@ namespace ChatApp.Infrastructure.Services
             }
         }
 
-        public async Task<List<FriendRequestDto>> GetPendingFriendRequestsAsync(int userId)
+        public async Task<List<FriendRequestDto>> GetPendingFriendRequestsAsync(string userId)
         {
             try
             {
@@ -225,7 +225,7 @@ namespace ChatApp.Infrastructure.Services
             }
         }
 
-        public async Task<List<FriendRequestDto>> GetSentFriendRequestsAsync(int  userId)
+        public async Task<List<FriendRequestDto>> GetSentFriendRequestsAsync(string  userId)
         {
             try
             {
@@ -253,7 +253,7 @@ namespace ChatApp.Infrastructure.Services
             }
         }
 
-        public async Task<List<FriendDto>> GetFriendsAsync(int  userId)
+        public async Task<List<FriendDto>> GetFriendsAsync(string  userId)
         {
             try
             {
@@ -286,7 +286,7 @@ namespace ChatApp.Infrastructure.Services
             }
         }
 
-        public async Task<bool> BlockUserAsync(int  blockerId, int  blockedId)
+        public async Task<bool> BlockUserAsync(string  blockerId, string  blockedId)
         {
             try
             {
@@ -321,7 +321,7 @@ namespace ChatApp.Infrastructure.Services
             }
         }
 
-        public async Task<bool> UnblockUserAsync(int  blockerId, int  blockedId)
+        public async Task<bool> UnblockUserAsync(string  blockerId, string  blockedId)
         {
             try
             {

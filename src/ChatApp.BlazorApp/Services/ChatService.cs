@@ -12,7 +12,7 @@ namespace ChatApp.BlazorApp.Services
         Task<List<ChatModel>> GetUserChatsAsync();
         Task<List<MessageModel>> GetChatMessagesAsync(int chatId, int page = 1);
         Task<MessageModel> SendMessageAsync(SendMessageRequest request);
-        Task<ChatModel> CreateDirectChatAsync(int userId);
+        Task<ChatModel> CreateDirectChatAsync(string userId);
         Task<ChatModel> CreateGroupChatAsync(CreateGroupChatRequest request);
         Task<MediaFileModel> UploadFileAsync(Stream fileStream, string fileName, string contentType);
         Task<bool> EditMessageAsync(int messageId, string content);
@@ -90,7 +90,7 @@ namespace ChatApp.BlazorApp.Services
             return message!;
         }
 
-        public async Task<ChatModel> CreateDirectChatAsync(int userId)
+        public async Task<ChatModel> CreateDirectChatAsync(string userId)
         {
             var request = new { UserId = userId };
             var response = await _httpClient.PostAsJsonAsync("/api/chat/direct", request);

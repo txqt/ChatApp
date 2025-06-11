@@ -1,4 +1,8 @@
-﻿using ChatApp.Application.Interfaces;
+﻿using Auth0.AuthenticationApi;
+using Auth0.AuthenticationApi.Models;
+using Auth0.ManagementApi;
+using Auth0.ManagementApi.Models;
+using ChatApp.Application.Interfaces;
 using ChatApp.Domain.Entities;
 using ChatApp.Domain.Enum;
 using Microsoft.AspNetCore.Identity;
@@ -14,7 +18,8 @@ namespace ChatApp.WebAPI.Services
     public interface IAuth0Service
     {
         Task<ApplicationUser> SyncUserAsync(ClaimsPrincipal claimsPrincipal);
-        Task<string> GetManagementTokenAsync();
+        Task<User> UpdateUserAsync(string userId, UserUpdateRequest request);
+        Task<User> GetUserAsync(string userId);
     }
 
     public class Auth0Service : IAuth0Service
@@ -35,31 +40,6 @@ namespace ChatApp.WebAPI.Services
             _configuration = configuration;
             _httpClient = httpClient;
         }
-
-        public async Task<string> GetManagementTokenAsync()
-        {
-            DotNetEnv.Env.Load();
-
-            var domain = Environment.GetEnvironmentVariable("Auth0__Authority");
-            var clientId = Environment.GetEnvironmentVariable("Auth0__ClientId");
-            var clientSecret = Environment.GetEnvironmentVariable("Auth0__ClientSecret");
-            var audience = $"https://{domain}/api/v2/";
-
-            var response = await _httpClient.PostAsync($"https://{domain}/oauth/token", new StringContent(JsonConvert.SerializeObject(new
-            {
-                client_id = clientId,
-                client_secret = clientSecret,
-                audience = audience,
-                grant_type = "client_credentials"
-            }), Encoding.UTF8, "application/json"));
-
-            response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadAsStringAsync();
-            dynamic result = JsonConvert.DeserializeObject(json);
-            return result.access_token;
-        }
-
         public async Task<ApplicationUser> SyncUserAsync(ClaimsPrincipal claimsPrincipal)
         {
             var auth0Id = claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value
@@ -116,7 +96,7 @@ namespace ChatApp.WebAPI.Services
                 Email = email,
                 NormalizedEmail = email?.ToUpper(),
                 DisplayName = name ?? email ?? "Unknown User",
-                Auth0Id = auth0Id,
+                Id = auth0Id,
                 AvatarUrl = picture,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
@@ -137,8 +117,40 @@ namespace ChatApp.WebAPI.Services
 
             return newUser;
         }
+        private async Task<string> GetManagementApiTokenAsync()
+        {
+            var authority = Environment.GetEnvironmentVariable("Auth0__Authority");
+            var audience = Environment.GetEnvironmentVariable("Auth0__Audience");
+            var clientId = Environment.GetEnvironmentVariable("Auth0__ClientId");
+            var clientSecret = Environment.GetEnvironmentVariable("Auth0__ClientSecret");
 
+            var client = new AuthenticationApiClient(authority);
+            var tokenRequest = new ClientCredentialsTokenRequest()
+            {
+                ClientId = clientId,
+                ClientSecret = clientSecret,
+                Audience = audience
+            };
 
+            var tokenResponse = await client.GetTokenAsync(tokenRequest);
+            return tokenResponse.AccessToken;
+        }
+
+        public async Task<User> UpdateUserAsync(string userId, UserUpdateRequest request)
+        {
+            var token = await GetManagementApiTokenAsync();
+            var client = new ManagementApiClient(token, _configuration["Auth0:Domain"]);
+
+            return await client.Users.UpdateAsync(userId, request);
+        }
+
+        public async Task<User> GetUserAsync(string userId)
+        {
+            var token = await GetManagementApiTokenAsync();
+            var client = new ManagementApiClient(token, _configuration["Auth0:Domain"]);
+
+            return await client.Users.GetAsync(userId);
+        }
         private async Task AssignDefaultRoleAsync(ApplicationUser user)
         {
             // Tìm hoặc tạo role "User"
@@ -180,7 +192,7 @@ namespace ChatApp.WebAPI.Services
 
         private async Task CreateDefaultPermissionsAsync(ApplicationUser user)
         {
-            var userPermission = new UserPermission
+            var userPermission = new Domain.Entities.UserPermission
             {
                 UserId = user.Id,
                 PermissionMask = (long)AppPermissions.BasicUser,

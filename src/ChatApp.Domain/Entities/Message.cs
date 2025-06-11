@@ -11,7 +11,7 @@ namespace ChatApp.Domain.Entities
     {
         public int MessageId { get; set; }
         public int ChatId { get; set; }
-        public int SenderId { get; set; }
+        public string SenderId { get; set; }
         public string Content { get; set; } = string.Empty;
         public MessageType MessageType { get; set; } = MessageType.Text;
         public int? MediaFileId { get; set; }
@@ -19,7 +19,7 @@ namespace ChatApp.Domain.Entities
         public DateTime? UpdatedAt { get; set; }
         public bool IsDeleted { get; set; } = false;
         public DateTime? DeletedAt { get; set; }
-        public int? DeletedBy { get; set; }
+        public string? DeletedBy { get; set; }
         public bool IsEdited { get; set; } = false;
 
         // Reply/Thread support

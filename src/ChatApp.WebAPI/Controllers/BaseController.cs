@@ -1,5 +1,6 @@
 ﻿using ChatApp.Domain.Entities;
 using ChatApp.Infrastructure.Services;
+using ChatApp.WebAPI.Extensions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -14,7 +15,7 @@ namespace ChatApp.WebAPI.Controllers
 
         // Property protected để các controller con dùng
         protected ApplicationUser CurrentUser { get; private set; }
-        protected int CurrentUserId { get; private set; }
+        protected string CurrentUserId { get; private set; }
 
         public BaseController(IUserService userService)
         {
@@ -40,8 +41,18 @@ namespace ChatApp.WebAPI.Controllers
         [NonAction]
         public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
         {
-            CurrentUser = await _userService.GetCurrentUserAsync();
-            CurrentUserId = CurrentUser?.Id ?? 0;
+            var currentUser = HttpContextExtensions.GetCurrentUser(HttpContext);
+            if (currentUser != null)
+            {
+                CurrentUser = currentUser;
+                CurrentUserId = currentUser.Id;
+            }
+            else
+            {
+                // Nếu không có user trong context, lấy từ service
+                CurrentUser = await _userService.GetCurrentUserAsync();
+                CurrentUserId = CurrentUser?.Id ?? "";
+            }
             await next();
         }
     }

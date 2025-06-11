@@ -9,7 +9,7 @@ namespace ChatApp.Domain.Entities
     public class MessageStatus
     {
         public int MessageId { get; set; }
-        public int UserId { get; set; }
+        public string UserId { get; set; }
         public MessageStatusType Status { get; set; } = MessageStatusType.Sent;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

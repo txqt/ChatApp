@@ -15,7 +15,7 @@ namespace ChatApp.Domain.Entities
         public string FilePath { get; set; } = string.Empty;
         public string? ThumbnailPath { get; set; }
         public long FileSize { get; set; }
-        public int UploadedBy { get; set; }
+        public string UploadedBy { get; set; }
         public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
         public bool IsDeleted { get; set; } = false;
         public DateTime? DeletedAt { get; set; }

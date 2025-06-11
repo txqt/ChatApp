@@ -1,7 +1,12 @@
-﻿using ChatApp.Application.DTOs;
+﻿using Auth0.ManagementApi.Models;
+using ChatApp.Application.DTOs;
+using ChatApp.Domain.Enum;
 using ChatApp.Infrastructure.Services;
+using ChatApp.WebAPI.Attributes;
+using ChatApp.WebAPI.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ChatApp.WebAPI.Controllers
 {
@@ -9,15 +14,63 @@ namespace ChatApp.WebAPI.Controllers
     [ApiController]
     public class UsersController : BaseController
     {
-        public UsersController(IUserService userService) : base(userService)
+        private readonly IAuth0Service _auth0Service;
+        private readonly ISystemPermissionService _systemPermissionService;
+        public UsersController(IUserService userService, IAuth0Service auth0Service, ISystemPermissionService systemPermissionService) : base(userService)
         {
+            _auth0Service = auth0Service;
+            _systemPermissionService = systemPermissionService;
         }
 
-        [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] UserCreateDto dto)
+        [HttpPut("{userId}")]
+        public async Task<IActionResult> UpdateUser(string userId, [FromBody] UserInfoDto dto)
         {
-            await _userService.EnsureUserExistsAsync(dto);
-            return Ok();
+            try
+            {
+                var permisison = await _systemPermissionService.GetUserPermissions(CurrentUserId);
+                if (permisison.HasFlag(AppPermissions.EditUser) | (!permisison.HasFlag(AppPermissions.EditOwnProfile) && CurrentUserId.ToString() == userId))
+                {
+                    return Forbid("You do not have permission.");
+                }
+
+                var updateRequest = new UserUpdateRequest
+                {
+                    Email = dto.Email,
+                    Picture = dto.Picture,
+                    FullName = dto.FullName,
+                };
+
+                var updatedUser = await _auth0Service.UpdateUserAsync(userId, updateRequest);
+
+                return Ok(new
+                {
+                    UserId = updatedUser.UserId,
+                    Email = updatedUser.Email,
+                    FullName = updatedUser.FullName,
+                    Picture = updatedUser.Picture
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error updating user: {ex.Message}");
+            }
+        }
+
+        [HttpGet("me")]
+        public async Task<ActionResult<UserInfoDto>> GetMe()
+        {
+            var user = CurrentUser;
+            if (user == null)
+                return NotFound();
+
+            return Ok(new UserInfoDto
+            {
+                Id = user.Id,
+                Email = user.Email,
+                FullName = user.DisplayName,
+                Picture = user.AvatarUrl,
+                Role = user.UserRoles?.FirstOrDefault()?.Role?.Name ?? "User",
+            });
         }
     }
 }

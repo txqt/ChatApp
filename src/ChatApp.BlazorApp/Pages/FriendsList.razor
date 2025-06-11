@@ -101,7 +101,7 @@
 </div>
 
 @code {
-    [Parameter] public EventCallback<int> OnStartChat { get; set; }
+    [Parameter] public EventCallback<string> OnStartChat { get; set; }
     [Parameter] public EventCallback OnFriendsChanged { get; set; }
 
     private List<FriendDto> friends = new();
@@ -137,12 +137,12 @@
         }
     }
 
-    private async Task StartChat(int friendId)
+    private async Task StartChat(string friendId)
     {
         await OnStartChat.InvokeAsync(friendId);
     }
 
-    private async Task RemoveFriend(int friendId)
+    private async Task RemoveFriend(string friendId)
     {
         if (await JSRuntime.InvokeAsync<bool>("confirm", "Bạn có chắc muốn xóa bạn bè này?"))
         {
@@ -164,7 +164,7 @@
         }
     }
 
-    private async Task BlockUser(int userId)
+    private async Task BlockUser(string userId)
     {
         if (await JSRuntime.InvokeAsync<bool>("confirm", "Bạn có chắc muốn chặn người dùng này?"))
         {

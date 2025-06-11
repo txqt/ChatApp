@@ -104,7 +104,7 @@
 </div>
 
 @code {
-    [Parameter] public EventCallback<int> OnStartChat { get; set; }
+    [Parameter] public EventCallback<string> OnStartChat { get; set; }
 
     private string activeTab = "friends";
     private int pendingRequestsCount = 0;
@@ -124,7 +124,7 @@
         StateHasChanged();
     }
 
-    private async Task HandleStartChat(int userId)
+    private async Task HandleStartChat(string userId)
     {
         await OnStartChat.InvokeAsync(userId);
         await JSRuntime.InvokeVoidAsync("alert", $"Bắt đầu chat với user ID: {userId}");
@@ -165,54 +165,5 @@
         {
             Console.WriteLine($"Error loading counts: {ex.Message}");
         }
-    }
-}
-
-@* Models/DTOs for Blazor (Client-side DTOs) *@
-@code {
-    // Client-side DTOs - These should match the server-side DTOs
-    public class UserSearchDto
-    {
-        public string Id { get; set; } = string.Empty;
-        public string UserName { get; set; } = string.Empty;
-        public string DisplayName { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public string Avatar { get; set; } = string.Empty;
-        public bool IsOnline { get; set; }
-        public DateTime LastSeen { get; set; }
-        public FriendshipStatus? FriendshipStatus { get; set; }
-        public bool IsFriend { get; set; }
-        public bool HasPendingRequest { get; set; }
-    }
-
-    public class FriendRequestDto
-    {
-        public string Id { get; set; } = string.Empty;
-        public string RequesterId { get; set; } = string.Empty;
-        public string RequesterName { get; set; } = string.Empty;
-        public string RequesterDisplayName { get; set; } = string.Empty;
-        public string RequesterAvatar { get; set; } = string.Empty;
-        public string ReceiverId { get; set; } = string.Empty;
-        public FriendshipStatus Status { get; set; }
-        public DateTime CreatedAt { get; set; }
-    }
-
-    public class FriendDto
-    {
-        public string Id { get; set; } = string.Empty;
-        public string UserName { get; set; } = string.Empty;
-        public string DisplayName { get; set; } = string.Empty;
-        public string Avatar { get; set; } = string.Empty;
-        public bool IsOnline { get; set; }
-        public DateTime LastSeen { get; set; }
-        public DateTime FriendsSince { get; set; }
-    }
-
-    public enum FriendshipStatus
-    {
-        Pending = 0,
-        Accepted = 1,
-        Declined = 2,
-        Blocked = 3
     }
 }

@@ -7,10 +7,10 @@ using System.Threading.Tasks;
 
 namespace ChatApp.Domain.Entities
 {
-    public class ApplicationUserRole : IdentityUserRole<int>
+    public class ApplicationUserRole : IdentityUserRole<string>
     {
         public DateTime AssignedAt { get; set; } = DateTime.UtcNow;
-        public int? AssignedBy { get; set; }
+        public string? AssignedBy { get; set; }
 
         // Navigation properties
         public ApplicationUser User { get; set; } = null!;

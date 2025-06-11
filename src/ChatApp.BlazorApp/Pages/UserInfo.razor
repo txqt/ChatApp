@@ -1,0 +1,58 @@
+﻿@page "/userinfo"
+@inject ApiService ApiService
+@attribute [Authorize]
+
+@if (userInfo != null)
+{
+    <div class="card">
+        <div class="card-header">
+            <h5>Account Information</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    @if (!string.IsNullOrEmpty(userInfo.Picture))
+                    {
+                        <img src="@userInfo.Picture" alt="Avatar" class="img-fluid rounded-circle" />
+                    }
+                </div>
+                <div class="col-md-9">
+                    <p><strong>ID:</strong> @userInfo.Id</p>
+                    <p><strong>FullName:</strong> @userInfo.FullName</p>
+                    <p><strong>Email:</strong> @userInfo.Email</p>
+                    <p><strong>Role:</strong> @userInfo.Role</p>
+                    <p><strong>Member Since:</strong> @userInfo.CreatedAt.ToString("MMM dd, yyyy")</p>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else if (loading)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <p>Error loading profile</p>
+}
+
+@code {
+    private UserInfoDto? userInfo;
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            userInfo = await ApiService.GetMeAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading profile: {ex.Message}");
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+}

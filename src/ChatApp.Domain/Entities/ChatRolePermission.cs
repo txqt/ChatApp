@@ -13,7 +13,7 @@ namespace ChatApp.Domain.Entities
         public ChatMemberRole Role { get; set; }
         public long PermissionMask { get; set; } = (long)ChatPermissions.All;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-        public int UpdatedBy { get; set; }
+        public string UpdatedBy { get; set; }
 
         // Navigation properties
         public Chat Chat { get; set; } = null!;

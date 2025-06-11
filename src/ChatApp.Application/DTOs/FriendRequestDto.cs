@@ -10,11 +10,11 @@ namespace ChatApp.Application.DTOs
     public class FriendRequestDto
     {
         public string Id { get; set; } = string.Empty;
-        public int RequesterId { get; set; }
+        public string RequesterId { get; set; }
         public string RequesterName { get; set; } = string.Empty;
         public string RequesterDisplayName { get; set; } = string.Empty;
         public string RequesterAvatar { get; set; } = string.Empty;
-        public int ReceiverId { get; set; }
+        public string ReceiverId { get; set; }
         public FriendshipStatus Status { get; set; }
         public DateTime CreatedAt { get; set; }
     }
