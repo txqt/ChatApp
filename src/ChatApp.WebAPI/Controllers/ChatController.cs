@@ -24,55 +24,49 @@ namespace ChatApp.WebAPI.Controllers
         public async Task<IActionResult> GetUserChats()
         {
             var chatsData = await _context.ChatMembers
-    .Where(cm => cm.UserId == CurrentUserId && cm.IsActive)
-    .Include(cm => cm.Chat)
-        .ThenInclude(c => c.LastMessage)
-            .ThenInclude(lm => lm.Sender)
-    .Include(cm => cm.Chat)
-        .ThenInclude(c => c.Members.Where(m => m.IsActive))
-            .ThenInclude(m => m.User)
-    .Select(cm => new
-    {
-        cm.Chat.ChatId,
-        cm.Chat.ChatName,
-        cm.Chat.ChatType,
-        cm.Chat.AvatarUrl,
-        cm.Chat.CreatedAt,
-        cm.Chat.UpdatedAt,
-        LastMessage = cm.Chat.LastMessage != null ? new
-        {
-            cm.Chat.LastMessage.MessageId,
-            cm.Chat.LastMessage.Content,
-            cm.Chat.LastMessage.MessageType,
-            cm.Chat.LastMessage.CreatedAt,
-            Sender = new
-            {
-                cm.Chat.LastMessage.Sender.Id,
-                cm.Chat.LastMessage.Sender.DisplayName,
-                cm.Chat.LastMessage.Sender.AvatarUrl
-            }
-        } : null,
-        Members = cm.Chat.Members.Select(m => new
-        {
-            m.User.Id,
-            m.User.DisplayName,
-            m.User.AvatarUrl,
-            m.User.IsOnline,
-            m.Role
-        }),
-        UnreadCount = _context.Messages
-            .Where(msg => msg.ChatId == cm.Chat.ChatId &&
-                   msg.CreatedAt > (cm.LastReadAt ?? DateTime.MinValue) &&
-                   msg.SenderId != CurrentUserId)
-            .Count(),
-        cm.LastReadAt,
-        cm.IsMuted
-    })
-    .ToListAsync();
+                        .Where(cm => cm.UserId == CurrentUserId && cm.IsActive)
+                        .Include(cm => cm.Chat)
+                            .ThenInclude(c => c.LastMessage)
+                                .ThenInclude(lm => lm.Sender)
+                        .Include(cm => cm.Chat)
+                            .ThenInclude(c => c.Members.Where(m => m.IsActive))
+                                .ThenInclude(m => m.User)
+                        .Select(cm => new ChatDto
+                        {
+                            ChatId = cm.Chat.ChatId,
+                            ChatName = cm.Chat.ChatName,
+                            ChatType = cm.Chat.ChatType,
+                            AvatarUrl = cm.Chat.AvatarUrl,
+                            CreatedAt = cm.Chat.CreatedAt,
+                            UpdatedAt = cm.Chat.UpdatedAt,
+                            LastMessage = cm.Chat.LastMessage == null ? null : new MessageDto
+                            {
+                                MessageId = cm.Chat.LastMessage.MessageId,
+                                Content = cm.Chat.LastMessage.Content,
+                                MessageType = cm.Chat.LastMessage.MessageType,
+                                CreatedAt = cm.Chat.LastMessage.CreatedAt,
+                                Sender = new UserDto
+                                {
+                                    Id = cm.Chat.LastMessage.Sender.Id,
+                                    DisplayName = cm.Chat.LastMessage.Sender.DisplayName,
+                                    AvatarUrl = cm.Chat.LastMessage.Sender.AvatarUrl,
+                                    IsOnline = cm.Chat.LastMessage.Sender.IsOnline
+                                }
+                            },
+                            UnreadCount = _context.Messages
+                                .Where(msg => msg.ChatId == cm.Chat.ChatId &&
+                                               msg.CreatedAt > (cm.LastReadAt ?? DateTime.MinValue) &&
+                                               msg.SenderId != CurrentUserId)
+                                .Count(),
+                            LastReadAt = cm.LastReadAt,
+                            IsMuted = cm.IsMuted
+                        })
+                        .ToListAsync();
 
             var chats = chatsData
                 .OrderByDescending(c => c.LastMessage?.CreatedAt ?? c.CreatedAt)
                 .ToList();
+
 
             return Ok(chats);
         }
@@ -114,8 +108,16 @@ namespace ChatApp.WebAPI.Controllers
                 IsActive = true
             };
 
+            
             _context.Chats.Add(chat);
             await _context.SaveChangesAsync();
+
+            var chatRolePermission = new ChatRolePermission
+            {
+                ChatId = chat.ChatId,
+                Role = ChatMemberRole.Member,
+                PermissionMask = (long)ChatPermissions.BasicMember // Direct chat has basic permissions
+            };
 
             // Add members
             var members = new[]
@@ -201,36 +203,37 @@ namespace ChatApp.WebAPI.Controllers
                 .OrderByDescending(m => m.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(m => new
+                .Select(m => new MessageDto
                 {
-                    m.MessageId,
-                    m.Content,
-                    m.MessageType,
-                    m.CreatedAt,
-                    m.UpdatedAt,
-                    m.IsEdited,
-                    Sender = new
+                    MessageId = m.MessageId,
+                    Content = m.Content,
+                    MessageType = m.MessageType,
+                    CreatedAt = m.CreatedAt,
+                    UpdatedAt = m.UpdatedAt,
+                    IsEdited = m.IsEdited,
+                    IsFromCurrentUser = m.SenderId == CurrentUserId,
+                    Sender = new UserDto
                     {
-                        m.Sender.Id,
-                        m.Sender.DisplayName,
-                        m.Sender.AvatarUrl
+                        Id = m.Sender.Id,
+                        DisplayName = m.Sender.DisplayName,
+                        AvatarUrl = m.Sender.AvatarUrl
                     },
-                    MediaFile = m.MediaFile != null ? new
+                    MediaFile = m.MediaFile != null ? new MediaFileModel
                     {
-                        m.MediaFile.FileId,
-                        m.MediaFile.FileName,
-                        m.MediaFile.ContentType,
-                        m.MediaFile.FileSize,
-                        m.MediaFile.ThumbnailPath
+                        FileId = m.MediaFile.FileId,
+                        FileName = m.MediaFile.FileName,
+                        ContentType = m.MediaFile.ContentType,
+                        FileSize = m.MediaFile.FileSize,
+                        ThumbnailPath = m.MediaFile.ThumbnailPath
                     } : null,
-                    ReplyTo = m.ReplyToMessage != null ? new
+                    ReplyTo = m.ReplyToMessage != null ? new MessageDto
                     {
-                        m.ReplyToMessage.MessageId,
-                        m.ReplyToMessage.Content,
-                        Sender = new
+                        MessageId = m.ReplyToMessage.MessageId,
+                        Content = m.ReplyToMessage.Content,
+                        Sender = new UserDto
                         {
-                            m.ReplyToMessage.Sender.Id,
-                            m.ReplyToMessage.Sender.DisplayName
+                            Id = m.ReplyToMessage.Sender.Id,
+                            DisplayName = m.ReplyToMessage.Sender.DisplayName
                         }
                     } : null
                 })

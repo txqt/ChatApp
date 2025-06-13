@@ -50,7 +50,7 @@ namespace ChatApp.Domain.Enum
         ReadOnly = ViewMessages | ViewMembers,
 
         BasicMember = ViewMessages | SendMessages | SendMedia | React |
-                     DeleteOwnMessages | EditOwnMessages | ViewMembers | ForwardMessages,
+                     DeleteOwnMessages | EditOwnMessages | ViewMembers | ForwardMessages | ViewMessageHistory,
 
         ActiveMember = BasicMember | SendVoice | CreatePolls,
 

@@ -1,5 +1,4 @@
 ﻿using ChatApp.Application.DTOs;
-using ChatApp.BlazorApp.Models;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 using Microsoft.AspNetCore.SignalR.Client;
 using System.Net.Http.Json;
@@ -9,18 +8,18 @@ namespace ChatApp.BlazorApp.Services
 {
     public interface IChatService
     {
-        Task<List<ChatModel>> GetUserChatsAsync();
-        Task<List<MessageModel>> GetChatMessagesAsync(int chatId, int page = 1);
-        Task<MessageModel> SendMessageAsync(SendMessageRequest request);
-        Task<ChatModel> CreateDirectChatAsync(string userId);
-        Task<ChatModel> CreateGroupChatAsync(CreateGroupChatRequest request);
+        Task<List<ChatDto>> GetUserChatsAsync();
+        Task<List<MessageDto>> GetChatMessagesAsync(int chatId, int page = 1);
+        Task<MessageDto> SendMessageAsync(SendMessageRequest request);
+        Task<ChatDto> CreateDirectChatAsync(string userId);
+        Task<ChatDto> CreateGroupChatAsync(CreateGroupChatRequest request);
         Task<MediaFileModel> UploadFileAsync(Stream fileStream, string fileName, string contentType);
         Task<bool> EditMessageAsync(int messageId, string content);
         Task<bool> DeleteMessageAsync(int messageId, bool deleteForEveryone = false);
-        Task<List<MessageModel>> SearchMessagesAsync(int chatId, string query);
+        Task<List<MessageDto>> SearchMessagesAsync(int chatId, string query);
 
         // SignalR Events
-        event Action<MessageModel>? OnMessageReceived;
+        event Action<MessageDto>? OnMessageReceived;
         event Action<int, string>? OnUserTyping;
         event Action<int>? OnUserStoppedTyping;
         event Action<int, bool>? OnUserOnlineStatusChanged;
@@ -56,41 +55,41 @@ namespace ChatApp.BlazorApp.Services
         }
 
         // Events
-        public event Action<MessageModel>? OnMessageReceived;
+        public event Action<MessageDto>? OnMessageReceived;
         public event Action<int, string>? OnUserTyping;
         public event Action<int>? OnUserStoppedTyping;
         public event Action<int, bool>? OnUserOnlineStatusChanged;
         public event Action<int, int, DateTime>? OnMessageRead;
         public event Action? ConnectionStateChanged;
 
-        public async Task<List<ChatModel>> GetUserChatsAsync()
+        public async Task<List<ChatDto>> GetUserChatsAsync()
         {
             var response = await _httpClient.GetAsync("/api/chat");
             response.EnsureSuccessStatusCode();
 
-            var chats = await response.Content.ReadFromJsonAsync<List<ChatModel>>(_jsonOptions);
-            return chats ?? new List<ChatModel>();
+            var chats = await response.Content.ReadFromJsonAsync<List<ChatDto>>(_jsonOptions);
+            return chats ?? new List<ChatDto>();
         }
 
-        public async Task<List<MessageModel>> GetChatMessagesAsync(int chatId, int page = 1)
+        public async Task<List<MessageDto>> GetChatMessagesAsync(int chatId, int page = 1)
         {
             var response = await _httpClient.GetAsync($"/api/chat/{chatId}/messages?page={page}");
             response.EnsureSuccessStatusCode();
 
-            var messages = await response.Content.ReadFromJsonAsync<List<MessageModel>>(_jsonOptions);
-            return messages ?? new List<MessageModel>();
+            var messages = await response.Content.ReadFromJsonAsync<List<MessageDto>>(_jsonOptions);
+            return messages ?? new List<MessageDto>();
         }
 
-        public async Task<MessageModel> SendMessageAsync(SendMessageRequest request)
+        public async Task<MessageDto> SendMessageAsync(SendMessageRequest request)
         {
             var response = await _httpClient.PostAsJsonAsync("/api/message", request);
             response.EnsureSuccessStatusCode();
 
-            var message = await response.Content.ReadFromJsonAsync<MessageModel>(_jsonOptions);
+            var message = await response.Content.ReadFromJsonAsync<MessageDto>(_jsonOptions);
             return message!;
         }
 
-        public async Task<ChatModel> CreateDirectChatAsync(string userId)
+        public async Task<ChatDto> CreateDirectChatAsync(string userId)
         {
             var request = new { UserId = userId };
             var response = await _httpClient.PostAsJsonAsync("/api/chat/direct", request);
@@ -98,16 +97,16 @@ namespace ChatApp.BlazorApp.Services
 
             var result = await response.Content.ReadFromJsonAsync<dynamic>(_jsonOptions);
             // Return basic chat model, will be refreshed from GetUserChats
-            return new ChatModel { ChatId = result?.chatId ?? 0 };
+            return new ChatDto { ChatId = result?.chatId ?? 0 };
         }
 
-        public async Task<ChatModel> CreateGroupChatAsync(CreateGroupChatRequest request)
+        public async Task<ChatDto> CreateGroupChatAsync(CreateGroupChatRequest request)
         {
             var response = await _httpClient.PostAsJsonAsync("/api/chat/group", request);
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<dynamic>(_jsonOptions);
-            return new ChatModel { ChatId = result?.chatId ?? 0 };
+            return new ChatDto { ChatId = result?.chatId ?? 0 };
         }
 
         public async Task<MediaFileModel> UploadFileAsync(Stream fileStream, string fileName, string contentType)
@@ -137,13 +136,13 @@ namespace ChatApp.BlazorApp.Services
             return response.IsSuccessStatusCode;
         }
 
-        public async Task<List<MessageModel>> SearchMessagesAsync(int chatId, string query)
+        public async Task<List<MessageDto>> SearchMessagesAsync(int chatId, string query)
         {
             var response = await _httpClient.GetAsync($"/api/message/search?chatId={chatId}&query={Uri.EscapeDataString(query)}");
             response.EnsureSuccessStatusCode();
 
-            var messages = await response.Content.ReadFromJsonAsync<List<MessageModel>>(_jsonOptions);
-            return messages ?? new List<MessageModel>();
+            var messages = await response.Content.ReadFromJsonAsync<List<MessageDto>>(_jsonOptions);
+            return messages ?? new List<MessageDto>();
         }
 
         // SignalR Methods
@@ -157,7 +156,7 @@ namespace ChatApp.BlazorApp.Services
                 .Build();
 
             // Register event handlers
-            _hubConnection.On<MessageModel>("ReceiveMessage", message =>
+            _hubConnection.On<MessageDto>("ReceiveMessage", message =>
             {
                 OnMessageReceived?.Invoke(message);
             });

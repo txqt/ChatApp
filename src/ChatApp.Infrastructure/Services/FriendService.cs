@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -109,6 +110,7 @@ namespace ChatApp.Infrastructure.Services
                 var receiverExists = await _context.Users.AnyAsync(u => u.Id == receiverId);
                 if (!receiverExists)
                     return false;
+                
 
                 var friendship = new Friendship
                 {
@@ -117,8 +119,14 @@ namespace ChatApp.Infrastructure.Services
                     Status = FriendshipStatus.Pending,
                     CreatedAt = DateTime.UtcNow
                 };
+                
+                Debug.Assert(friendship.Requester == null && friendship.Receiver == null);
 
                 _context.Friendships.Add(friendship);
+                foreach (var e in _context.ChangeTracker.Entries())
+                    Console.WriteLine($"{e.Entity.GetType().Name}: {e.State}");
+                Debug.Assert(friendship.Requester == null && friendship.Receiver == null);
+
                 await _context.SaveChangesAsync();
                 return true;
             }

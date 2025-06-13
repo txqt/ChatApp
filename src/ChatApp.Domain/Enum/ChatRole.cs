@@ -12,5 +12,4 @@ namespace ChatApp.Domain.Enum
         Admin,
         Owner
     }
-
 }

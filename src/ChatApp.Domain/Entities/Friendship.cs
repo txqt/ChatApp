@@ -17,7 +17,7 @@ namespace ChatApp.Domain.Entities
         public DateTime? AcceptedAt { get; set; }
 
         // Navigation properties
-        public virtual ApplicationUser Requester { get; set; } = null!;
-        public virtual ApplicationUser Receiver { get; set; } = null!;
+        public ApplicationUser? Requester { get; set; }
+        public ApplicationUser? Receiver { get; set; }
     }
 }

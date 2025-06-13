@@ -247,7 +247,7 @@ namespace ChatApp.WebAPI.Controllers
             if (!permission)
                 return Forbid("You don't have permission");
 
-            var forwardedMessages = new List<object>();
+            var forwardedMessages = new List<MessageDto>();
 
             foreach (var targetChatId in request.TargetChatIds)
             {
@@ -280,7 +280,7 @@ namespace ChatApp.WebAPI.Controllers
             return Ok(new { forwardedMessages, count = forwardedMessages.Count });
         }
 
-        private async Task<object> GetMessageWithDetails(int messageId)
+        private async Task<MessageDto?> GetMessageWithDetails(int messageId)
         {
             return await _context.Messages
                 .Where(m => m.MessageId == messageId)
@@ -288,40 +288,42 @@ namespace ChatApp.WebAPI.Controllers
                 .Include(m => m.MediaFile)
                 .Include(m => m.ReplyToMessage)
                     .ThenInclude(rm => rm.Sender)
-                .Select(m => new
+                .Select(m => new MessageDto
                 {
-                    m.MessageId,
-                    m.ChatId,
-                    m.Content,
-                    m.MessageType,
-                    m.CreatedAt,
-                    m.UpdatedAt,
-                    m.IsEdited,
-                    m.IsDeleted,
-                    Sender = new
+                    MessageId = m.MessageId,
+                    ChatId = m.ChatId,
+                    Content = m.Content,
+                    MessageType = m.MessageType,
+                    CreatedAt = m.CreatedAt,
+                    UpdatedAt = m.UpdatedAt,
+                    IsEdited = m.IsEdited,
+                    IsDeleted = m.IsDeleted,
+                    IsFromCurrentUser = m.SenderId == CurrentUserId,
+                    Sender = new UserDto
                     {
-                        m.Sender.Id,
-                        m.Sender.DisplayName,
-                        m.Sender.AvatarUrl
+                        Id = m.Sender.Id,
+                        DisplayName = m.Sender.DisplayName,
+                        AvatarUrl = m.Sender.AvatarUrl
                     },
-                    MediaFile = m.MediaFile != null ? new
+                    MediaFile = m.MediaFile != null ? new MediaFileModel
                     {
-                        m.MediaFile.FileId,
-                        m.MediaFile.FileName,
-                        m.MediaFile.OriginalFileName,
-                        m.MediaFile.ContentType,
-                        m.MediaFile.FilePath,
-                        m.MediaFile.ThumbnailPath,
-                        m.MediaFile.FileSize
+                        FileId = m.MediaFile.FileId,
+                        FileName = m.MediaFile.FileName,
+                        OriginalFileName = m.MediaFile.OriginalFileName,
+                        ContentType = m.MediaFile.ContentType,
+                        FilePath = m.MediaFile.FilePath,
+                        ThumbnailPath = m.MediaFile.ThumbnailPath,
+                        FileSize = m.MediaFile.FileSize
                     } : null,
-                    ReplyTo = m.ReplyToMessage != null ? new
+                    ReplyTo = m.ReplyToMessage != null ? new MessageDto
                     {
-                        m.ReplyToMessage.MessageId,
-                        m.ReplyToMessage.Content,
-                        Sender = new
+                        MessageId = m.ReplyToMessage.MessageId,
+                        Content = m.ReplyToMessage.Content,
+                        Sender = new UserDto
                         {
-                            m.ReplyToMessage.Sender.Id,
-                            m.ReplyToMessage.Sender.DisplayName
+                            Id = m.ReplyToMessage.Sender.Id,
+                            DisplayName = m.ReplyToMessage.Sender.DisplayName,
+                            AvatarUrl = m.ReplyToMessage.Sender.AvatarUrl
                         }
                     } : null,
                     IsForwarded = m.ForwardedFromMessageId.HasValue

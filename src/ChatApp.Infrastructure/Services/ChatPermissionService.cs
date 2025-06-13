@@ -52,6 +52,14 @@ namespace ChatApp.Infrastructure.Services
             if (chat == null)
                 return ChatPermissions.None;
 
+            // Xử lý đặc biệt cho Direct Chat
+            if (chat.ChatType == ChatType.Direct)
+            {
+                // Trong direct chat, cả 2 người đều có quyền cơ bản
+                return ChatPermissions.BasicMember;
+            }
+
+            // Với group chat, sử dụng role system
             return chat.GetRolePermissions(member.Role);
         }
 
@@ -70,6 +78,14 @@ namespace ChatApp.Infrastructure.Services
             if (chat == null)
                 return ChatPermissions.None;
 
+            // Xử lý đặc biệt cho Direct Chat
+            if (chat.ChatType == ChatType.Direct)
+            {
+                // Trong direct chat, cả 2 người đều có quyền cơ bản
+                return ChatPermissions.BasicMember;
+            }
+
+            // Với group chat, sử dụng role system
             return chat.GetRolePermissions(member.Role);
         }
 
@@ -79,11 +95,29 @@ namespace ChatApp.Infrastructure.Services
                 .Include(c => c.RolePermissions)
                 .FirstOrDefaultAsync(c => c.ChatId == chatId);
 
-            return chat?.GetRolePermissions(role) ?? ChatPermissions.None;
+            if (chat == null)
+                return ChatPermissions.None;
+
+            // Xử lý đặc biệt cho Direct Chat
+            if (chat.ChatType == ChatType.Direct)
+            {
+                // Direct chat không sử dụng role system, tất cả đều có quyền cơ bản
+                return ChatPermissions.BasicMember;
+            }
+
+            return chat.GetRolePermissions(role);
         }
 
         public async Task<bool> UpdateRolePermissions(int chatId, ChatMemberRole role, ChatPermissions permissions, string updatedBy)
         {
+            // Kiểm tra xem có phải direct chat không
+            var chat = await _context.Chats.FirstOrDefaultAsync(c => c.ChatId == chatId);
+            if (chat?.ChatType == ChatType.Direct)
+            {
+                // Không thể thay đổi permissions của direct chat
+                return false;
+            }
+
             // Kiểm tra quyền của người cập nhật
             var canManage = await CanUserPerformAction(updatedBy, chatId, ChatPermissions.ManagePermissions);
             if (!canManage)

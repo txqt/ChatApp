@@ -122,7 +122,7 @@
 
         <!-- Sidebar Menu -->
         <div class="sidebar-menu">
-            <div class="menu-item" @onclick="NavigateToProfile">
+            <div class="menu-item" @onclick="ShowProfile">
                 <i class="fas fa-user me-2"></i> Profile
             </div>
             <div class="menu-item" @onclick="NavigateToSettings">
@@ -261,10 +261,13 @@
             </div>
 
             <div class="chat-input">
-                <input type="text" class="form-control" placeholder="Type a message..."
-                       @bind="messageInput" 
-                       @oninput="OnTyping"
-                       @onkeydown="HandleKeyDown" />
+                <input
+                      type="text"
+                      class="form-control"
+                      placeholder="Type a message..."
+                      @bind="messageInput"
+                      @oninput="OnTyping"
+                      @onkeyup="HandleKeyDown" />
                 <button class="send-button" @onclick="SendMessage" 
                         disabled="@(string.IsNullOrWhiteSpace(messageInput))">
                     <i class="fas fa-paper-plane"></i>
@@ -280,19 +283,24 @@
     </div>
 </div>
 @code {
-    private List<ChatModel> allChats = new();
-    private List<ChatModel> filteredChats = new();
-    private ChatModel? selectedChat;
-    private List<MessageModel> messages = new();
+    private List<ChatDto> allChats = new();
+    private List<ChatDto> filteredChats = new();
+    private ChatDto? selectedChat;
+    private List<MessageDto> messages = new();
     private Dictionary<int, TypingUser> typingUsers = new();
     private string searchQuery = string.Empty;
     private string messageInput = string.Empty;
-    private int currentUserId = 1; // TODO: Load from session/state
+    private string currentUserId = "";
     private ElementReference messagesDivRef;
     private Timer? typingTimer;
+    @inject AuthenticationStateProvider AuthenticationStateProvider
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        currentUserId = user.GetUserId();
         ChatService.OnMessageReceived += OnMessageReceived;
         ChatService.OnUserTyping += OnUserTypingReceived;
         ChatService.OnUserStoppedTyping += OnUserStoppedTyping;
@@ -312,7 +320,7 @@
             .ToList();
     }
 
-    private async Task SelectChat(ChatModel chat)
+    private async Task SelectChat(ChatDto chat)
     {
         selectedChat = chat;
         messages = await ChatService.GetChatMessagesAsync(chat.ChatId);
@@ -329,7 +337,12 @@
     {
         if (!string.IsNullOrWhiteSpace(messageInput) && selectedChat != null)
         {
-            await ChatService.SendMessageViaSignalRAsync(selectedChat.ChatId, messageInput);
+            await ChatService.SendMessageAsync(new SendMessageRequest()
+            {
+                ChatId = selectedChat.ChatId,
+                Content = messageInput,
+                MessageType = MessageType.Text,
+            });
             messageInput = string.Empty;
             await ChatService.StopTypingAsync(selectedChat.ChatId);
         }
@@ -360,7 +373,7 @@
         }
     }
 
-    private async void OnMessageReceived(MessageModel message)
+    private async void OnMessageReceived(MessageDto message)
     {
         if (selectedChat?.ChatId == message.ChatId)
         {
@@ -431,14 +444,14 @@
         await ChatService.StopConnectionAsync();
     }
 
-    private string GetMessagePreview(MessageModel msg) =>
+    private string GetMessagePreview(MessageDto msg) =>
         msg.IsDeleted ? "[Deleted]" : 
         msg.Content.Length > 30 ? msg.Content[..30] + "..." : msg.Content;
 
-    private string GetDirectChatName(ChatModel chat) =>
+    private string GetDirectChatName(ChatDto chat) =>
         chat.Members.FirstOrDefault(m => m.Id != currentUserId)?.DisplayName ?? "Unknown";
 
-    private string GetDirectChatInitial(ChatModel chat) =>
+    private string GetDirectChatInitial(ChatDto chat) =>
         GetDirectChatName(chat)?.FirstOrDefault().ToString().ToUpper() ?? "?";
 
     private string GetRelativeTime(DateTime dateTime)
@@ -461,6 +474,7 @@
     private string newGroupName = string.Empty;
     private string newGroupMemberIds = string.Empty;
     private IModalReference newChatModalReference;
+    private IModalReference profileModalReference;
 
     async Task ShowNewChatModal()
     {
@@ -473,6 +487,14 @@
         {
             await CreateGroupChat(info);
         }
+    }
+
+    async Task ShowProfile()
+    {
+        var options = new ModalOptions { DisableBackgroundCancel = true, HideHeader = false, Size = ModalSize.Automatic };
+        var parameters = new ModalParameters();
+
+        profileModalReference = Modal.Show<Profile>("Profile", parameters, options);
     }
 
     private async Task CreateGroupChat(CreateGroupChatRequest createGroupChatRequest)

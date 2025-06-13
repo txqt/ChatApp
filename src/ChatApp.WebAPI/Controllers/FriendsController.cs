@@ -1,4 +1,6 @@
 ﻿using ChatApp.Application.DTOs;
+using ChatApp.Application.Interfaces;
+using ChatApp.Infrastructure.Data;
 using ChatApp.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -15,11 +17,13 @@ namespace ChatApp.WebAPI.Controllers
     {
         private readonly IFriendService _friendService;
         private readonly ILogger<FriendsController> _logger;
+        private readonly ApplicationDbContext _dbContext;
 
-        public FriendsController(IFriendService friendService, ILogger<FriendsController> logger, IUserService userService) : base(userService)
+        public FriendsController(IFriendService friendService, ILogger<FriendsController> logger, IUserService userService, ApplicationDbContext dbContext) : base(userService)
         {
             _friendService = friendService;
             _logger = logger;
+            _dbContext = dbContext;
         }
         [HttpGet("search")]
         public async Task<ActionResult<List<UserSearchDto>>> SearchUsers([FromQuery] string searchTerm, [FromQuery] int pageSize = 20, [FromQuery] int page = 1)
@@ -47,14 +51,16 @@ namespace ChatApp.WebAPI.Controllers
         {
             try
             {
-                var currentUser = await _userService.GetCurrentUserAsync();
-                if (currentUser == null)
+                if (CurrentUser == null)
                     return Unauthorized();
 
                 if (request.ReceiverId == null)
                     return BadRequest("Receiver ID is required");
 
-                var success = await _friendService.SendFriendRequestAsync(currentUser.Id, request.ReceiverId);
+                foreach (var e in _dbContext.ChangeTracker.Entries())
+                    Console.WriteLine($"{e.Entity.GetType().Name}: {e.State}");
+
+                var success = await _friendService.SendFriendRequestAsync(CurrentUserId, request.ReceiverId);
 
                 if (!success)
                     return BadRequest("Unable to send friend request. User may not exist or request already exists.");

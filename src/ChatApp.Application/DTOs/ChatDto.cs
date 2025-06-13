@@ -1,8 +1,13 @@
-using ChatApp.Domain.Enum;
+﻿using ChatApp.Domain.Enum;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace ChatApp.BlazorApp.Models
+namespace ChatApp.Application.DTOs
 {
-    public class ChatModel
+    public class ChatDto
     {
         public int ChatId { get; set; }
         public string? ChatName { get; set; }
@@ -10,8 +15,8 @@ namespace ChatApp.BlazorApp.Models
         public string? AvatarUrl { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
-        public MessageModel? LastMessage { get; set; }
-        public List<UserModel> Members { get; set; } = new();
+        public MessageDto? LastMessage { get; set; }
+        public List<UserDto> Members { get; set; } = new();
         public int UnreadCount { get; set; }
         public DateTime? LastReadAt { get; set; }
         public bool IsMuted { get; set; }

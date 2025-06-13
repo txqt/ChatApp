@@ -1,8 +1,8 @@
-using ChatApp.Domain.Enum;
+﻿using ChatApp.Domain.Enum;
 
-namespace ChatApp.BlazorApp.Models
+namespace ChatApp.Application.DTOs
 {
-    public class MessageModel
+    public class MessageDto
     {
         public int MessageId { get; set; }
         public int ChatId { get; set; }
@@ -12,9 +12,9 @@ namespace ChatApp.BlazorApp.Models
         public DateTime? UpdatedAt { get; set; }
         public bool IsEdited { get; set; }
         public bool IsDeleted { get; set; }
-        public UserModel Sender { get; set; } = new();
+        public UserDto Sender { get; set; } = new();
         public MediaFileModel? MediaFile { get; set; }
-        public MessageModel? ReplyTo { get; set; }
+        public MessageDto? ReplyTo { get; set; }
         public bool IsForwarded { get; set; }
         public bool IsFromCurrentUser { get; set; }
     }

@@ -1,10 +1,15 @@
-using ChatApp.Domain.Enum;
+﻿using ChatApp.Domain.Enum;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace ChatApp.BlazorApp.Models
+namespace ChatApp.Application.DTOs
 {
-    public class UserModel
+    public class UserDto
     {
-        public int Id { get; set; }
+        public string Id { get; set; }
         public string DisplayName { get; set; } = string.Empty;
         public string? AvatarUrl { get; set; }
         public bool IsOnline { get; set; }

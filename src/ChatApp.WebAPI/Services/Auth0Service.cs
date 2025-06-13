@@ -53,7 +53,7 @@ namespace ChatApp.WebAPI.Services
 
             // Tìm user existing
             var existingUser = await _context.Users
-                .FirstOrDefaultAsync(u => u.UserName == auth0Id);
+                .FirstOrDefaultAsync(u => u.Id == auth0Id);
 
             if (existingUser != null)
             {
