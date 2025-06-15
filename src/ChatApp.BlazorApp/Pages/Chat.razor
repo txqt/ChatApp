@@ -97,13 +97,13 @@
                                                 <MudText Typo="Typo.subtitle2" Class="text-truncate">
                                                     @(chat.ChatType == ChatType.Direct ? GetDirectChatName(chat) : chat.ChatName)
                                                 </MudText>
-                                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                <MudText Typo="Typo.caption">
                                                     @GetRelativeTime(chat.UpdatedAt)
                                                 </MudText>
                                             </div>
 
                                             <div class="d-flex align-center">
-                                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="text-truncate flex-grow-1">
+                                                <MudText Typo="Typo.body2" Class="text-truncate flex-grow-1">
                                                     @if (chat.LastMessage != null)
                                                     {
                                                         if (chat.LastMessage.IsDeleted)
@@ -142,7 +142,7 @@
                                                     {
                                                         <MudIcon Icon="Icons.Material.Filled.VolumeOff"
                                                                  Size="Size.Small"
-                                                                 Color="Color.Secondary"
+                                                                
                                                                  Class="ml-1" />
                                                     }
                                                 </div>
@@ -155,7 +155,7 @@
                         else
                         {
                             <div class="d-flex justify-center align-center pa-4">
-                                <MudText Color="Color.Secondary">No chats found</MudText>
+                                <MudText>No chats found</MudText>
                             </div>
                         }
                     </MudList>
@@ -166,9 +166,6 @@
                 <MudList T="string">
                     <MudListItem Icon="Icons.Material.Filled.Person" OnClick="ShowProfile">
                         Profile
-                    </MudListItem>
-                    <MudListItem Icon="Icons.Material.Filled.Settings" OnClick="NavigateToSettings">
-                        Settings
                     </MudListItem>
                     <MudListItem Icon="Icons.Material.Filled.Logout" OnClick="Logout">
                         Logout
@@ -205,7 +202,7 @@
                             <MudText Typo="Typo.h6">
                                 @(selectedChat.ChatType == ChatType.Direct ? GetDirectChatName(selectedChat) : selectedChat.ChatName)
                             </MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            <MudText Typo="Typo.body2">
                                 @if (selectedChat.ChatType == ChatType.Group)
                                 {
                                     <span>@selectedChat.Members.Count members</span>
@@ -275,7 +272,7 @@
                                         <div>
                                             @if (msg.IsDeleted)
                                             {
-                                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                                <MudText Typo="Typo.body2">
                                                     <em>Message deleted</em>
                                                 </MudText>
                                             }
@@ -302,12 +299,12 @@
                                         </div>
 
                                         <div class="d-flex justify-end align-center mt-2">
-                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mr-1">
+                                            <MudText Typo="Typo.caption" Class="mr-1">
                                                 @msg.CreatedAt.ToString("HH:mm")
                                             </MudText>
                                             @if (msg.IsEdited && !msg.IsDeleted)
                                             {
-                                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                <MudText Typo="Typo.caption">
                                                     <em>(edited)</em>
                                                 </MudText>
                                             }
@@ -365,7 +362,7 @@
             else
             {
                 <div class="d-flex justify-center align-center flex-grow-1">
-                    <MudText Typo="Typo.h6" Color="Color.Secondary">Select a chat to start messaging</MudText>
+                    <MudText Typo="Typo.h6">Select a chat to start messaging</MudText>
                 </div>
             }
         </MudItem>

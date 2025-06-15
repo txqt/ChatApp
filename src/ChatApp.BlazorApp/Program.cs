@@ -51,6 +51,7 @@ builder.Services.AddOidcAuthentication(options =>
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddBlazoredModal();
 builder.Services.AddScoped<ApiService>();
+builder.Services.AddSingleton<ThemeService>();
 builder.Services.AddMudServices();
 
 await builder.Build().RunAsync();

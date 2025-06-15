@@ -1,11 +1,24 @@
 ﻿@inherits LayoutComponentBase
+@inject ThemeService ThemeService
 @* Required *@
-<MudThemeProvider />
 <MudPopoverProvider />
+<MudThemeProvider Theme="ThemeService.CurrentTheme" IsDarkMode="@ThemeService.IsDarkMode"></MudThemeProvider>
 
 @* Needed for dialogs *@
 <MudDialogProvider />
 
 @* Needed for snackbars *@
 <MudSnackbarProvider />
+
 @Body
+
+@code{
+    protected override void OnInitialized()
+    {
+        ThemeService.OnChange += StateHasChanged;
+    }
+    public void Dispose()
+    {
+        ThemeService.OnChange -= StateHasChanged;
+    }
+}

@@ -2,78 +2,93 @@
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
 
+
 <div class="user-search-container">
-    <div class="search-box">
-        <input type="text" @bind="searchTerm" @onkeyup="OnSearchKeyUp"
-               placeholder="Tìm kiếm người dùng..." class="form-control" />
-        <button @onclick="SearchUsers" class="btn btn-primary">
-            <i class="fas fa-search"></i>
-        </button>
-    </div>
+    <MudTextField @bind-Value="searchTerm"
+                  Placeholder="Tìm kiếm người dùng..."
+                  Adornment="Adornment.End"
+                  AdornmentIcon="@Icons.Material.Filled.Search"
+                  OnAdornmentClick="SearchUsers"
+                  Immediate="true"
+                  OnKeyUp="OnSearchKeyUp"
+                  Class="w-100" T="string" />
 
     @if (isLoading)
     {
-        <div class="text-center mt-3">
-            <div class="spinner-border" role="status">
-                <span class="sr-only">Đang tìm kiếm...</span>
-            </div>
+        <div class="text-center mt-4">
+            <MudProgressCircular Indeterminate="true" Size="Size.Large" />
         </div>
     }
 
     @if (searchResults.Any())
     {
-        <div class="search-results mt-3">
+        <MudGrid GutterSize="3" Class="mt-4">
             @foreach (var user in searchResults)
             {
-                <div class="user-card">
-                    <div class="user-info">
-                        <img src="@(!string.IsNullOrEmpty(user.Avatar) ? user.Avatar : "/images/default-avatar.png")"
-                             alt="@user.DisplayName" class="user-avatar" />
-                        <div class="user-details">
-                            <h6>@user.DisplayName</h6>
-                            <small class="text-muted">@@@user.UserName</small>
-                            <div class="user-status">
-                                @if (user.IsOnline)
-                                {
-                                    <span class="status-online">Online</span>
-                                }
-                                else
-                                {
-                                    <span class="status-offline">Offline - @user.LastSeen?.ToString("dd/MM/yyyy HH:mm")</span>
-                                }
-                            </div>
-                        </div>
-                    </div>
-                    <div class="user-actions">
-                        @if (user.IsFriend)
-                        {
-                            <button @onclick="() => StartChat(user.Id)" class="btn btn-success btn-sm">
-                                <i class="fas fa-comment"></i> Chat
-                            </button>
-                            <button @onclick="() => RemoveFriend(user.Id)" class="btn btn-outline-danger btn-sm">
-                                <i class="fas fa-user-minus"></i>
-                            </button>
-                        }
-                        else if (user.HasPendingRequest)
-                        {
-                            <span class="badge badge-warning">Đã gửi lời mời</span>
-                        }
-                        else
-                        {
-                            <button @onclick="() => SendFriendRequest(user.Id)" class="btn btn-primary btn-sm">
-                                <i class="fas fa-user-plus"></i> Kết bạn
-                            </button>
-                        }
-                    </div>
-                </div>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudCard>
+                        <MudCardContent>
+                            <MudGrid>
+                                <MudItem xs="3" Class="d-flex justify-center">
+                                    <MudAvatar Size="Size.Large"
+                                               Image="@GetAvatar(user.Avatar)"
+                                               Icon="@Icons.Material.Filled.Person" />
+                                </MudItem>
+                                <MudItem xs="9">
+                                    <MudText Typo="Typo.subtitle1">@user.DisplayName</MudText>
+                                    <MudText Typo="Typo.caption" Class="text-muted">
+                                        @($"{user.UserName}")
+                                    </MudText>
+                                    <MudText Typo="Typo.body2" Class="mt-1">
+                                        @if (user.IsOnline)
+                                        {
+                                            <MudBadge Dot="true" Color="Color.Success" Class="me-1">Online</MudBadge>
+                                        }
+                                        else
+                                        {
+                                            <MudBadge Dot="true" Color="Color.Default" Class="me-1">Offline</MudBadge>
+                                            <small class="text-muted">
+                                                @user.LastSeen?.ToString("dd/MM/yyyy HH:mm")
+                                            </small>
+                                        }
+                                    </MudText>
+                                </MudItem>
+                            </MudGrid>
+                        </MudCardContent>
+                        <MudCardActions Class="justify-end">
+                            @if (user.IsFriend)
+                            {
+                                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Success"
+                                           OnClick="() => StartChat(user.Id)">
+                                    <MudIcon Icon="@Icons.Material.Filled.Chat" /> Chat
+                                </MudButton>
+                                <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error"
+                                           OnClick="() => RemoveFriend(user.Id)">
+                                    <MudIcon Icon="@Icons.Material.Filled.PersonRemove" />
+                                </MudButton>
+                            }
+                            else if (user.HasPendingRequest)
+                            {
+                                <MudBadge Color="Color.Warning">Đã gửi lời mời</MudBadge>
+                            }
+                            else
+                            {
+                                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                                           OnClick="() => SendFriendRequest(user.Id)">
+                                    <MudIcon Icon="@Icons.Material.Filled.PersonAdd" /> Kết bạn
+                                </MudButton>
+                            }
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
             }
-        </div>
+        </MudGrid>
     }
-    else if (!isLoading && !string.IsNullOrEmpty(searchTerm))
+    else if (!isLoading && !string.IsNullOrWhiteSpace(searchTerm))
     {
-        <div class="no-results mt-3">
-            <p class="text-muted">Không tìm thấy người dùng nào.</p>
-        </div>
+        <MudText Typo="Typo.body2" Class="text-center text-muted mt-4">
+            Không tìm thấy người dùng nào.
+        </MudText>
     }
 </div>
 
@@ -112,7 +127,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error searching users: {ex.Message}");
+            Console.Error.WriteLine($"Error searching users: {ex.Message}");
             await JSRuntime.InvokeVoidAsync("alert", "Có lỗi xảy ra khi tìm kiếm người dùng.");
         }
         finally
@@ -126,13 +141,11 @@
     {
         try
         {
-            var request = new { ReceiverId = userId };
-            var response = await Http.PostAsJsonAsync("api/friends/send-request", request);
-
+            var response = await Http.PostAsJsonAsync("api/friends/send-request", new { ReceiverId = userId });
             if (response.IsSuccessStatusCode)
             {
                 await JSRuntime.InvokeVoidAsync("alert", "Gửi lời mời kết bạn thành công!");
-                await SearchUsers(); // Refresh results
+                await SearchUsers();
             }
             else
             {
@@ -141,7 +154,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error sending friend request: {ex.Message}");
+            Console.Error.WriteLine($"Error sending friend request: {ex.Message}");
             await JSRuntime.InvokeVoidAsync("alert", "Có lỗi xảy ra khi gửi lời mời kết bạn.");
         }
     }
@@ -156,12 +169,12 @@
                 if (response.IsSuccessStatusCode)
                 {
                     await JSRuntime.InvokeVoidAsync("alert", "Đã xóa bạn bè thành công!");
-                    await SearchUsers(); // Refresh results
+                    await SearchUsers();
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error removing friend: {ex.Message}");
+                Console.Error.WriteLine($"Error removing friend: {ex.Message}");
                 await JSRuntime.InvokeVoidAsync("alert", "Có lỗi xảy ra khi xóa bạn bè.");
             }
         }
@@ -171,6 +184,9 @@
     {
         await OnStartChat.InvokeAsync(userId);
     }
+
+    private string GetAvatar(string? avatar) =>
+        !string.IsNullOrEmpty(avatar) ? avatar : "/images/default-avatar.png";
 
     public void Dispose()
     {

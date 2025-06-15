@@ -1,110 +1,108 @@
-﻿@* Components/FriendManagement/FriendRequests.razor *@
+﻿@using Microsoft.AspNetCore.Components.Web
+@using MudBlazor
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
 
-<div class="friend-requests-container">
-    <ul class="nav nav-tabs" id="friendRequestsTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link @(activeTab == "pending" ? "active" : "")"
-                    @onclick='() => SetActiveTab("pending")' type="button">
-                Lời mời nhận được
-                @if (pendingRequests.Any())
-                {
-                    <span class="badge badge-danger ms-2">@pendingRequests.Count</span>
-                }
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link @(activeTab == "sent" ? "active" : "")"
-                    @onclick='() => SetActiveTab("sent")' type="button">
-                Lời mời đã gửi
-                @if (sentRequests.Any())
-                {
-                    <span class="badge badge-secondary ms-2">@sentRequests.Count</span>
-                }
-            </button>
-        </li>
-    </ul>
-
-    <div class="tab-content mt-3">
-        @if (activeTab == "pending")
+<MudTabs @bind-ActivePanelIndex="activeIndex" Rounded="false">
+    <MudTabPanel Text="Lời mời kết bạn">
+        @if (pendingRequests.Any())
         {
-            <div class="tab-pane fade show active">
-                @if (pendingRequests.Any())
+            <MudGrid GutterSize="3">
+                @foreach (var req in pendingRequests)
                 {
-                    @foreach (var request in pendingRequests)
-                    {
-                        <div class="friend-request-card">
-                            <div class="user-info">
-                                <img src="@(!string.IsNullOrEmpty(request.RequesterAvatar) ? request.RequesterAvatar : "/images/default-avatar.png")"
-                                     alt="@request.RequesterDisplayName" class="user-avatar" />
-                                <div class="user-details">
-                                    <h6>@request.RequesterDisplayName</h6>
-                                    <small class="text-muted">@@@request.RequesterName</small>
-                                    <div class="request-time">
-                                        <small class="text-muted">@request.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="request-actions">
-                                <button @onclick="() => AcceptRequest(request.Id)" class="btn btn-success btn-sm me-2">
-                                    <i class="fas fa-check"></i> Chấp nhận
-                                </button>
-                                <button @onclick="() => DeclineRequest(request.Id)" class="btn btn-outline-danger btn-sm">
-                                    <i class="fas fa-times"></i> Từ chối
-                                </button>
-                            </div>
-                        </div>
-                    }
+                    <MudItem xs="12">
+                        <MudCard>
+                            <MudCardContent>
+                                <MudGrid>
+                                    <MudItem xs="2" Class="d-flex justify-center">
+                                        <MudAvatar Size="Size.Medium"
+                                                   Image="@GetAvatar(req.RequesterAvatar)"
+                                                   Icon="@Icons.Material.Filled.Person" />
+                                    </MudItem>
+                                    <MudItem xs="10">
+                                        <MudText Typo="Typo.subtitle1">@req.RequesterDisplayName</MudText>
+                                        <MudText Typo="Typo.caption" Class="text-muted">
+                                            @($"@{req.RequesterName}")
+                                        </MudText>
+                                        <MudText Typo="Typo.body2" Class="mt-1 text-muted">
+                                            @req.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                                        </MudText>
+                                    </MudItem>
+                                </MudGrid>
+                            </MudCardContent>
+                            <MudCardActions Class="justify-end">
+                                <MudButton Size="Size.Small"
+                                           Variant="Variant.Filled"
+                                           Color="Color.Success"
+                                           OnClick="() => AcceptRequest(req.Id)">
+                                    <MudIcon Icon="@Icons.Material.Filled.Check" /> Chấp nhận
+                                </MudButton>
+                                <MudButton Size="Size.Small"
+                                           Variant="Variant.Outlined"
+                                           Color="Color.Error"
+                                           OnClick="() => DeclineRequest(req.Id)">
+                                    <MudIcon Icon="@Icons.Material.Filled.Close" /> Từ chối
+                                </MudButton>
+                            </MudCardActions>
+                        </MudCard>
+                    </MudItem>
                 }
-                else
-                {
-                    <div class="no-requests">
-                        <p class="text-muted">Không có lời mời kết bạn nào.</p>
-                    </div>
-                }
-            </div>
+            </MudGrid>
         }
         else
         {
-            <div class="tab-pane fade show active">
-                @if (sentRequests.Any())
-                {
-                    @foreach (var request in sentRequests)
-                    {
-                        <div class="friend-request-card">
-                            <div class="user-info">
-                                <img src="@(!string.IsNullOrEmpty(request.RequesterAvatar) ? request.RequesterAvatar : "/images/default-avatar.png")"
-                                     alt="@request.RequesterDisplayName" class="user-avatar" />
-                                <div class="user-details">
-                                    <h6>@request.RequesterDisplayName</h6>
-                                    <small class="text-muted">@@@request.RequesterName</small>
-                                    <div class="request-time">
-                                        <small class="text-muted">Đã gửi: @request.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="request-actions">
-                                <span class="badge badge-warning">Đang chờ</span>
-                            </div>
-                        </div>
-                    }
-                }
-                else
-                {
-                    <div class="no-requests">
-                        <p class="text-muted">Bạn chưa gửi lời mời kết bạn nào.</p>
-                    </div>
-                }
-            </div>
+            <MudText Typo="Typo.body2" Class="text-center text-muted">
+                Không có lời mời kết bạn nào.
+            </MudText>
         }
-    </div>
-</div>
+    </MudTabPanel>
+    <MudTabPanel Text="Lời mời đã gửi">
+        @if (sentRequests.Any())
+        {
+            <MudGrid GutterSize="3">
+                @foreach (var req in sentRequests)
+                {
+                    <MudItem xs="12">
+                        <MudCard>
+                            <MudCardContent>
+                                <MudGrid>
+                                    <MudItem xs="2" Class="d-flex justify-center">
+                                        <MudAvatar Size="Size.Medium"
+                                                   Image="@GetAvatar(req.RequesterAvatar)"
+                                                   Icon="@Icons.Material.Filled.Person" />
+                                    </MudItem>
+                                    <MudItem xs="10">
+                                        <MudText Typo="Typo.subtitle1">@req.RequesterDisplayName</MudText>
+                                        <MudText Typo="Typo.caption" Class="text-muted">
+                                            @($"@{req.RequesterName}")
+                                        </MudText>
+                                        <MudText Typo="Typo.body2" Class="mt-1 text-muted">
+                                            Đã gửi: @req.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                                        </MudText>
+                                    </MudItem>
+                                </MudGrid>
+                            </MudCardContent>
+                            <MudCardActions Class="justify-end">
+                                <MudBadge Color="Color.Warning">Đang chờ</MudBadge>
+                            </MudCardActions>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Class="text-center text-muted">
+                Bạn chưa gửi lời mời kết bạn nào.
+            </MudText>
+        }
+    </MudTabPanel>
+</MudTabs>
 
 @code {
     [Parameter] public EventCallback OnRequestsChanged { get; set; }
 
-    private string activeTab = "pending";
+    private int activeIndex = 0;
     private List<FriendRequestDto> pendingRequests = new();
     private List<FriendRequestDto> sentRequests = new();
 
@@ -113,74 +111,48 @@
         await LoadRequests();
     }
 
-    private void SetActiveTab(string tab)
-    {
-        activeTab = tab;
-    }
-
     private async Task LoadRequests()
     {
         try
         {
-            // Load pending requests
             var pendingResponse = await Http.GetAsync("api/friends/requests/pending");
             if (pendingResponse.IsSuccessStatusCode)
-            {
                 pendingRequests = await pendingResponse.Content.ReadFromJsonAsync<List<FriendRequestDto>>() ?? new();
-            }
 
-            // Load sent requests
             var sentResponse = await Http.GetAsync("api/friends/requests/sent");
             if (sentResponse.IsSuccessStatusCode)
-            {
                 sentRequests = await sentResponse.Content.ReadFromJsonAsync<List<FriendRequestDto>>() ?? new();
-            }
-
-            StateHasChanged();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading friend requests: {ex.Message}");
+            Console.Error.WriteLine($"Error loading friend requests: {ex.Message}");
         }
     }
 
     private async Task AcceptRequest(string requestId)
     {
-        try
+        if (await Http.PostAsync($"api/friends/accept-request/{requestId}", null)
+                      .ContinueWith(t => t.Result.IsSuccessStatusCode))
         {
-            var response = await Http.PostAsync($"api/friends/accept-request/{requestId}", null);
-            if (response.IsSuccessStatusCode)
-            {
-                await JSRuntime.InvokeVoidAsync("alert", "Đã chấp nhận lời mời kết bạn!");
-                await LoadRequests();
-                await OnRequestsChanged.InvokeAsync();
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error accepting friend request: {ex.Message}");
-            await JSRuntime.InvokeVoidAsync("alert", "Có lỗi xảy ra khi chấp nhận lời mời.");
+            await JSRuntime.InvokeVoidAsync("alert", "Đã chấp nhận lời mời kết bạn!");
+            await LoadRequests();
+            await OnRequestsChanged.InvokeAsync();
         }
     }
 
     private async Task DeclineRequest(string requestId)
     {
-        try
+        if (await Http.PostAsync($"api/friends/decline-request/{requestId}", null)
+                      .ContinueWith(t => t.Result.IsSuccessStatusCode))
         {
-            var response = await Http.PostAsync($"api/friends/decline-request/{requestId}", null);
-            if (response.IsSuccessStatusCode)
-            {
-                await JSRuntime.InvokeVoidAsync("alert", "Đã từ chối lời mời kết bạn!");
-                await LoadRequests();
-                await OnRequestsChanged.InvokeAsync();
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error declining friend request: {ex.Message}");
-            await JSRuntime.InvokeVoidAsync("alert", "Có lỗi xảy ra khi từ chối lời mời.");
+            await JSRuntime.InvokeVoidAsync("alert", "Đã từ chối lời mời kết bạn!");
+            await LoadRequests();
+            await OnRequestsChanged.InvokeAsync();
         }
     }
+
+    private string GetAvatar(string? url) =>
+        !string.IsNullOrEmpty(url) ? url : "/images/default-avatar.png";
 
     public async Task RefreshRequests()
     {

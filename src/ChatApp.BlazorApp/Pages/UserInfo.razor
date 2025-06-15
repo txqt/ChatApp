@@ -1,39 +1,68 @@
 ﻿@page "/userinfo"
 @inject ApiService ApiService
+@using MudBlazor
 @attribute [Authorize]
 
-@if (userInfo != null)
+@if (loading)
 {
-    <div class="card">
-        <div class="card-header">
-            <h5>Account Information</h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-3">
-                    @if (!string.IsNullOrEmpty(userInfo.Picture))
-                    {
-                        <img src="@userInfo.Picture" alt="Avatar" class="img-fluid rounded-circle" />
-                    }
-                </div>
-                <div class="col-md-9">
-                    <p><strong>ID:</strong> @userInfo.Id</p>
-                    <p><strong>FullName:</strong> @userInfo.FullName</p>
-                    <p><strong>Email:</strong> @userInfo.Email</p>
-                    <p><strong>Role:</strong> @userInfo.Role</p>
-                    <p><strong>Member Since:</strong> @userInfo.CreatedAt.ToString("MMM dd, yyyy")</p>
-                </div>
-            </div>
-        </div>
+    <div class="d-flex justify-center">
+        <MudProgressCircular Indeterminate="true" Size="Size.Large" />
     </div>
 }
-else if (loading)
+else if (userInfo != null)
 {
-    <p>Loading...</p>
+    <MudCard>
+        <MudCardHeader>
+            <MudText Typo="Typo.h5">Account Information</MudText>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudGrid GutterSize="3">
+                <MudItem xs="12" md="3" Class="d-flex justify-center">
+                    @if (!string.IsNullOrEmpty(userInfo.Picture))
+                    {
+                        <MudAvatar Size="Size.Large"
+                                   Alt="Avatar"
+                                   Image="@userInfo.Picture"
+                                   Class="mt-2" />
+                    }
+                    else
+                    {
+                        <MudAvatar Size="Size.Large"
+                                   Icon="@Icons.Material.Filled.Person"
+                                   Class="mt-2" />
+                    }
+                </MudItem>
+                <MudItem xs="12" md="9">
+                    <MudList Dense="true" T="string">
+                        <MudListItem>
+                            <MudText><strong>ID:</strong> @userInfo.Id</MudText>
+                        </MudListItem>
+                        <MudListItem>
+                            <MudText><strong>Full Name:</strong> @userInfo.FullName</MudText>
+                        </MudListItem>
+                        <MudListItem>
+                            <MudText><strong>Email:</strong> @userInfo.Email</MudText>
+                        </MudListItem>
+                        <MudListItem>
+                            <MudText><strong>Role:</strong> @userInfo.Role</MudText>
+                        </MudListItem>
+                        <MudListItem>
+                            <MudText>
+                                <strong>Member Since:</strong>
+                                @userInfo.CreatedAt.ToString("MMM dd, yyyy")
+                            </MudText>
+                        </MudListItem>
+                    </MudList>
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+    </MudCard>
 }
 else
 {
-    <p>Error loading profile</p>
+    <MudAlert Severity="Severity.Error">
+        Error loading profile
+    </MudAlert>
 }
 
 @code {
@@ -48,11 +77,12 @@ else
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading profile: {ex.Message}");
+            Console.Error.WriteLine($"Error loading profile: {ex.Message}");
         }
         finally
         {
             loading = false;
+            StateHasChanged();
         }
     }
 }

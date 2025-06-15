@@ -60,7 +60,7 @@ namespace ChatApp.WebAPI.Hubs
             {
                 var groupName = $"Chat_{chatId}";
                 // Notify đúng group này
-                await Clients.Group(groupName)
+                await Clients.OthersInGroup(groupName)
                              .SendAsync("UserOffline", new { userId = currentUser.Id });
 
                 // Xoá kết nối ra khỏi group (tuỳ chọn, vì disconnect tự remove)

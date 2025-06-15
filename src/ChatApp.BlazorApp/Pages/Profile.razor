@@ -1,36 +1,44 @@
 ﻿@using MudBlazor
 @inject IDialogService DialogService
+@inject ThemeService ThemeService
 
 <MudDialog MaxWidth="MaxWidth.Large" FullWidth="true">
     <DialogContent>
+    <MudGrid GutterSize="3">
+        <MudItem xs="12">
+            <MudCard>
+                <!-- Mobile tabs header -->
+                <MudHidden Breakpoint="Breakpoint.MdAndUp">
+                    <MudTabs Rounded="false" Elevation="0" Align="Center">
+                        <MudTabPanel Icon="@Icons.Material.Filled.Person" />
+                        <MudTabPanel Icon="@Icons.Material.Filled.CreditCard" />
+                        <MudTabPanel Icon="@Icons.Material.Filled.Settings" />
+                    </MudTabs>
+                </MudHidden>
 
-        <div class="container">
-            <div class="row gutters-sm">
-                <div class="card">
-                    <div class="card-header border-bottom mb-3 d-flex d-md-none">
-                        <MudTabs Rounded="false" Elevation="0" Align="Center">
-                            <MudTabPanel Text="" Icon="@Icons.Material.Filled.Person" />
-                            <MudTabPanel Text="" Icon="@Icons.Material.Filled.CreditCard" />
-                        </MudTabs>
-                    </div>
-                    <div class="card-body">
-                        <MudTabs>
-                            <MudTabPanel Text="Profile" Value="profile">
-                                <h6>YOUR PROFILE INFORMATION</h6>
-                                <hr />
-                                <UserInfo />
-                            </MudTabPanel>
-                            <MudTabPanel Text="Friends" Value="friends">
-                                <h6>FRIENDS SETTINGS</h6>
-                                <hr />
-                                <FriendManagement />
-                            </MudTabPanel>
-                        </MudTabs>
-                    </div>
-                </div>
-            </div>
-        </div>
+                <MudCardContent>
+                    <!-- Main tabs -->
+                    <MudTabs>
+                        <MudTabPanel Text="Profile" Value="profile">
+                            <UserInfo />
+                        </MudTabPanel>
 
+                        <MudTabPanel Text="Friends" Value="friends">
+                            <FriendManagement />
+                        </MudTabPanel>
+
+                        <MudTabPanel Text="Settings" Value="settings">
+                            <MudItem xs="12" Class="mt-4">
+                                        <MudSwitch @bind-Checked="@ThemeService.IsDarkMode" Color="Color.Primary" T="bool" ValueChanged="val => ThemeService.ToggleDarkMode()">
+                                            Dark Mode
+                                        </MudSwitch>
+                            </MudItem>
+                        </MudTabPanel>
+                    </MudTabs>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
     </DialogContent>
 
     <DialogActions>
@@ -40,6 +48,14 @@
 
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+
+    [CascadingParameter]
+    private MainLayout? ParentLayout { get; set; }
+
+    private void ToggleDarkMode()
+    {
+        ThemeService.ToggleDarkMode();
+    }
 
     void Close() => MudDialog.Close();
 }
