@@ -20,7 +20,7 @@
 
     <MudGrid Style="height: 100vh;" Spacing="0">
         <!-- Sidebar -->
-        <MudItem xs="12" sm="4" md="3" Class="d-flex flex-column" Style="border-right: 1px solid var(--mud-palette-divider);">
+        <MudItem xs="12" sm="3" md="2" Class="d-flex flex-column" Style="border-right: 1px solid var(--mud-palette-divider);">
             <MudPaper Elevation="0" Class="flex-grow-1 d-flex flex-column">
                 <!-- Header -->
                 <MudToolBar Dense="true" Class="px-4">
@@ -218,12 +218,10 @@
                                         @if (otherUser.IsOnline)
                                         {
                                             <span class="d-flex align-center">
-                                                <MudIcon Icon="Icons.Material.Filled.Circle"
+                                                <MudIcon Icon="@Icons.Material.Filled.Circle"
                                                          Color="Color.Success"
                                                          Size="Size.Small"
-                                                         Class="mr-1" />
-                                                Online
-                                            </span>
+                                                         Class="mr-1" />Online</span>
                                         }
                                         else if (otherUser.LastSeenAt.HasValue)
                                         {
@@ -399,7 +397,11 @@
         ChatService.OnUserTyping += OnUserTypingReceived;
         ChatService.OnUserStoppedTyping += OnUserStoppedTyping;
         ChatService.OnMessageRead += OnMessageRead;
+        ChatService.OnUserOnlineStatusChanged += HandleUserOnlineStatusChanged;
         await ChatService.StartConnectionAsync();
+
+        await JSRuntime.InvokeVoidAsync("signalRAddBeforeUnload",
+            DotNetObjectReference.Create(this));
         allChats = await ChatService.GetUserChatsAsync();
         filteredChats = allChats;
     }
@@ -412,6 +414,13 @@
             await Task.Delay(50);
             await ScrollToBottom();
         }
+    }
+
+    [JSInvokable]
+    public async Task OnBrowserUnload()
+    {
+        // Dừng cầu nối trước khi tab đóng
+        await ChatService.StopConnectionAsync();
     }
 
     private void FilterChats(ChangeEventArgs e)
@@ -539,6 +548,22 @@
         typingUsers.Remove(chatId);
         StateHasChanged();
     }
+
+    private void HandleUserOnlineStatusChanged(string userId, bool isOnline)
+    {
+        // Tìm trong selectedChat.Members hoặc allChats nếu bạn lưu trạng thái online ở đó
+        foreach (var chat in allChats)
+        {
+            var member = chat.Members.FirstOrDefault(m => m.Id == userId);
+            if (member != null)
+            {
+                member.IsOnline = isOnline;
+                // nếu server gửi lastSeen thì gán thêm member.LastSeenAt = dto.LastSeenAt
+            }
+        }
+        InvokeAsync(() => StateHasChanged());
+    }
+
 
     private void OnMessageRead(int messageId, int readBy, DateTime readAt)
     {

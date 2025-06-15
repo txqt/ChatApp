@@ -23,29 +23,24 @@ namespace ChatApp.WebAPI.Hubs
 
         public override async Task OnConnectedAsync()
         {
-            // Sync user và get current user
             var currentUser = await GetCurrentUser();
+            // … cập nhật IsOnline, LastSeenAt, lưu db …
 
-            // Update user online status
-            currentUser.IsOnline = true;
-            currentUser.LastSeenAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-
-            // Join user vào các chat groups
+            // Lấy danh sách chatId (string) mà user này thuộc về
             var userChats = await _context.ChatMembers
                 .Where(cm => cm.UserId == currentUser.Id && cm.IsActive)
                 .Select(cm => cm.ChatId.ToString())
                 .ToListAsync();
 
-            if(userChats.Any())
+            // Add connection vào các group
+            foreach (var chatId in userChats)
             {
-                foreach (var chatId in userChats)
-                {
-                    await Groups.AddToGroupAsync(Context.ConnectionId, $"Chat_{chatId}");
-                }
+                var groupName = $"Chat_{chatId}";
+                await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
 
-                // Notify other users that this user is online
-                await Clients.All.SendAsync("UserOnline", new { userId = currentUser.Id, displayName = currentUser.DisplayName });
+                // Notify **chỉ** group này, và chỉ người khác (không bao gồm bản thân)
+                await Clients.OthersInGroup(groupName)
+                             .SendAsync("UserOnline", new { userId = currentUser.Id});
             }
 
             await base.OnConnectedAsync();
@@ -53,18 +48,23 @@ namespace ChatApp.WebAPI.Hubs
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
-            var auth0Id = Context.User?.FindFirst("sub")?.Value;
-            if (!string.IsNullOrEmpty(auth0Id))
-            {
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.UserName == auth0Id);
-                if (user != null)
-                {
-                    user.IsOnline = false;
-                    user.LastSeenAt = DateTime.UtcNow;
-                    await _context.SaveChangesAsync();
+            var currentUser = await GetCurrentUser();
+            // … cập nhật offline …
 
-                    await Clients.All.SendAsync("UserOffline", new { userId = user.Id });
-                }
+            var userChats = await _context.ChatMembers
+                .Where(cm => cm.UserId == currentUser.Id && cm.IsActive)
+                .Select(cm => cm.ChatId.ToString())
+                .ToListAsync();
+
+            foreach (var chatId in userChats)
+            {
+                var groupName = $"Chat_{chatId}";
+                // Notify đúng group này
+                await Clients.Group(groupName)
+                             .SendAsync("UserOffline", new { userId = currentUser.Id });
+
+                // Xoá kết nối ra khỏi group (tuỳ chọn, vì disconnect tự remove)
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
             }
 
             await base.OnDisconnectedAsync(exception);

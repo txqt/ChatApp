@@ -22,7 +22,7 @@ namespace ChatApp.BlazorApp.Services
         event Action<MessageDto>? OnMessageReceived;
         event Action<int, string>? OnUserTyping;
         event Action<int>? OnUserStoppedTyping;
-        event Action<int, bool>? OnUserOnlineStatusChanged;
+        event Action<string, bool>? OnUserOnlineStatusChanged;
         event Action<int, int, DateTime>? OnMessageRead;
 
         Task StartConnectionAsync();
@@ -58,7 +58,7 @@ namespace ChatApp.BlazorApp.Services
         public event Action<MessageDto>? OnMessageReceived;
         public event Action<int, string>? OnUserTyping;
         public event Action<int>? OnUserStoppedTyping;
-        public event Action<int, bool>? OnUserOnlineStatusChanged;
+        public event Action<string, bool>? OnUserOnlineStatusChanged;
         public event Action<int, int, DateTime>? OnMessageRead;
         public event Action? ConnectionStateChanged;
 
@@ -174,12 +174,12 @@ namespace ChatApp.BlazorApp.Services
 
             _hubConnection.On<dynamic>("UserOnline", data =>
             {
-                OnUserOnlineStatusChanged?.Invoke((int)data.userId, true);
+                OnUserOnlineStatusChanged?.Invoke((string)data.userId, true);
             });
 
             _hubConnection.On<dynamic>("UserOffline", data =>
             {
-                OnUserOnlineStatusChanged?.Invoke((int)data.userId, false);
+                OnUserOnlineStatusChanged?.Invoke((string)data.userId, false);
             });
 
             _hubConnection.On<dynamic>("MessageRead", data =>

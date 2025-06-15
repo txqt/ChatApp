@@ -24,3 +24,10 @@ window.scrollToElement = (id) => {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
 };
+
+window.signalRAddBeforeUnload = function (dotnetHelper) {
+    window.addEventListener('beforeunload', () => {
+        // Gọi về .NET để thực thi StopAsync()
+        dotnetHelper.invokeMethodAsync('OnBrowserUnload');
+    });
+};
