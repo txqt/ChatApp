@@ -59,7 +59,16 @@ namespace ChatApp.WebAPI.Controllers
                                                msg.SenderId != CurrentUserId)
                                 .Count(),
                             LastReadAt = cm.LastReadAt,
-                            IsMuted = cm.IsMuted
+                            IsMuted = cm.IsMuted,
+                            Members = cm.Chat.Members
+                                .Select(m => new UserDto
+                                {
+                                    Id = m.User.Id,
+                                    DisplayName = m.User.DisplayName,
+                                    AvatarUrl = m.User.AvatarUrl,
+                                    IsOnline = m.User.IsOnline
+                                })
+                                .ToList()
                         })
                         .ToListAsync();
 
@@ -211,7 +220,6 @@ namespace ChatApp.WebAPI.Controllers
                     CreatedAt = m.CreatedAt,
                     UpdatedAt = m.UpdatedAt,
                     IsEdited = m.IsEdited,
-                    IsFromCurrentUser = m.SenderId == CurrentUserId,
                     Sender = new UserDto
                     {
                         Id = m.Sender.Id,

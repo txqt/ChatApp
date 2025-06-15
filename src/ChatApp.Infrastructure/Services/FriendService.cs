@@ -119,8 +119,6 @@ namespace ChatApp.Infrastructure.Services
                     Status = FriendshipStatus.Pending,
                     CreatedAt = DateTime.UtcNow
                 };
-                
-                Debug.Assert(friendship.Requester == null && friendship.Receiver == null);
 
                 _context.Friendships.Add(friendship);
                 foreach (var e in _context.ChangeTracker.Entries())

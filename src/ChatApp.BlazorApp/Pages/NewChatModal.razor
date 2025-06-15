@@ -1,44 +1,45 @@
-﻿@using Blazored.Modal
-@using Blazored.Modal.Services
+﻿@using MudBlazor
+@inject IDialogService DialogService
+@inject ApiService ApiService
 
-<div class="modal-body">
-    <div class="form-group">
-        <label>Group Name</label>
-        <input class="form-control" @bind="NewGroupName" />
-    </div>
-    <div class="form-group">
-        <label>Member User IDs (comma separated)</label>
-        <input class="form-control" @bind="NewGroupMemberIds" />
-    </div>
-</div>
-<div class="modal-footer">
-    <button class="btn btn-secondary" @onclick="Cancel">Cancel</button>
-    <button class="btn btn-primary" @onclick="Create">Create</button>
-</div>
+<MudDialog MaxWidth="MaxWidth.Small" FullWidth="true">
+    <DialogContent>
+        <MudTextField @bind-Value="GroupName" Label="Group Name" Variant="Variant.Outlined" Class="mb-4" />
+        <MudSelect Label="Select Friends" @bind-SelectedValues="SelectedMemberIds" MultiSelection="true" Variant="Variant.Outlined">
+            @foreach (var friend in _friendList)
+            {
+                <MudSelectItem Value="@friend.Id">@friend.UserName</MudSelectItem>
+            }
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Create">Create</MudButton>
+    </DialogActions>
+</MudDialog>
 
 @code {
-    [Parameter] public EventCallback<CreateGroupChatRequest> OnCreate { get; set; }
-    [CascadingParameter] BlazoredModalInstance ModalInstance { get; set; }
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
 
-    string NewGroupName { get; set; }
-    string NewGroupMemberIds { get; set; }
+    private List<FriendDto> _friendList = new();
+    private IEnumerable<string> SelectedMemberIds { get; set; } = new List<string>();
 
-    async Task Create()
+    string GroupName { get; set; }
+
+    void Cancel() => MudDialog.Cancel();
+
+    void Create()
     {
-        var memberIdList = NewGroupMemberIds
-                        .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                        .Select(id => id.Trim())
-                        .ToList();
-
-        var info = new CreateGroupChatRequest
+        var result = new CreateGroupChatRequest
         {
-            ChatName = NewGroupName,
-            MemberIds = memberIdList
+            ChatName = GroupName,
+            MemberIds = SelectedMemberIds.ToList()
         };
-        await OnCreate.InvokeAsync(info);
-        await ModalInstance.CloseAsync();
+        MudDialog.Close(DialogResult.Ok(result));
     }
 
-    Task Cancel()
-        => ModalInstance.CancelAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        _friendList = await ApiService.GetMyFriends();
+    }
 }

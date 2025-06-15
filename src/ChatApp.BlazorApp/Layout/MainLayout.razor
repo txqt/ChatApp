@@ -1,24 +1,11 @@
 ﻿@inherits LayoutComponentBase
-@inject SignOutSessionStateManager SignOutManager
-<div class="page">
-    <main>
-            @Body
-    </main>
-</div>
+@* Required *@
+<MudThemeProvider />
+<MudPopoverProvider />
 
-@code {
-    // Khi click Login, sẽ redirect qua Auth0 để login
-    private void BeginLogin()
-    {
-        Navigation.NavigateTo("/authentication/login");
-    }
-    // Khi click Logout, sẽ đưa đến Auth0 logout rồi quay về logout-callback
-    private async Task BeginLogout()
-    {
-        await SignOutManager.SetSignOutState();
-        Navigation.NavigateTo("/authentication/logout");
-    }
+@* Needed for dialogs *@
+<MudDialogProvider />
 
-    [Inject]
-    public NavigationManager Navigation { get; set; }
-}
+@* Needed for snackbars *@
+<MudSnackbarProvider />
+@Body

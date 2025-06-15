@@ -58,6 +58,7 @@ namespace ChatApp.WebAPI.Controllers
             };
 
             _context.Messages.Add(message);
+            await _context.SaveChangesAsync();
 
             // Update chat's last message
             var chat = await _context.Chats.FindAsync(request.ChatId);
@@ -72,7 +73,7 @@ namespace ChatApp.WebAPI.Controllers
             // Load message với details để return
             var messageWithDetails = await GetMessageWithDetails(message.MessageId);
 
-            await _chatHubContext.Clients.Group(request.ChatId.ToString())
+            await _chatHubContext.Clients.Group("Chat_"+request.ChatId.ToString())
                 .SendAsync("ReceiveMessage", messageWithDetails);
 
             return Ok(messageWithDetails);
@@ -298,7 +299,6 @@ namespace ChatApp.WebAPI.Controllers
                     UpdatedAt = m.UpdatedAt,
                     IsEdited = m.IsEdited,
                     IsDeleted = m.IsDeleted,
-                    IsFromCurrentUser = m.SenderId == CurrentUserId,
                     Sender = new UserDto
                     {
                         Id = m.Sender.Id,

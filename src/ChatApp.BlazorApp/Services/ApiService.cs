@@ -23,5 +23,11 @@ namespace ChatApp.BlazorApp.Services
             var response = await _httpClient.GetFromJsonAsync<UserInfoDto>("api/users/me");
             return response;
         }
+
+        public async Task<List<FriendDto>> GetMyFriends()
+        {
+            var response = await _httpClient.GetFromJsonAsync<List<FriendDto>>("api/users/me/friends");
+            return response;
+        }
     }
 }

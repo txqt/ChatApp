@@ -77,6 +77,7 @@ namespace ChatApp.BlazorApp.Services
             response.EnsureSuccessStatusCode();
 
             var messages = await response.Content.ReadFromJsonAsync<List<MessageDto>>(_jsonOptions);
+            
             return messages ?? new List<MessageDto>();
         }
 

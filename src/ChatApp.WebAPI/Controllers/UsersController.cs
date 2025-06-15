@@ -16,10 +16,12 @@ namespace ChatApp.WebAPI.Controllers
     {
         private readonly IAuth0Service _auth0Service;
         private readonly ISystemPermissionService _systemPermissionService;
-        public UsersController(IUserService userService, IAuth0Service auth0Service, ISystemPermissionService systemPermissionService) : base(userService)
+        private readonly IFriendService _friendService;
+        public UsersController(IUserService userService, IAuth0Service auth0Service, ISystemPermissionService systemPermissionService, IFriendService friendService) : base(userService)
         {
             _auth0Service = auth0Service;
             _systemPermissionService = systemPermissionService;
+            _friendService = friendService;
         }
 
         [HttpPut("{userId}")]
@@ -71,6 +73,16 @@ namespace ChatApp.WebAPI.Controllers
                 Picture = user.AvatarUrl,
                 Role = user.UserRoles?.FirstOrDefault()?.Role?.Name ?? "User",
             });
+        }
+
+        [HttpGet("me/friends")]
+        public async Task<ActionResult<List<UserInfoDto>>> GetMyFriends()
+        {
+            var user = CurrentUser;
+            if (user == null)
+                return NotFound();
+            var friends = await _friendService.GetFriendsAsync(CurrentUserId);
+            return Ok(friends);
         }
     }
 }
