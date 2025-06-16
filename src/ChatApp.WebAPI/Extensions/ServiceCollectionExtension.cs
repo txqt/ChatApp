@@ -1,12 +1,12 @@
-﻿using ChatApp.Domain.Entities;
+﻿using Auth0.ManagementApi;
+using ChatApp.Application;
+using ChatApp.Domain.Entities;
 using ChatApp.Infrastructure;
 using ChatApp.Infrastructure.Data;
 using ChatApp.Infrastructure.Services;
+using ChatApp.WebAPI.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using ChatApp.Application;
-using ChatApp.WebAPI.Services;
-using Auth0.ManagementApi;
 
 namespace ChatApp.WebAPI.Extensions
 {
@@ -29,6 +29,7 @@ namespace ChatApp.WebAPI.Extensions
             services.AddSignalR();
 
             services.AddScoped<IAuth0Service, Auth0Service>();
+            services.AddScoped<IMediaService, MediaService>();
 
             services.AddHttpClient();
             return services;

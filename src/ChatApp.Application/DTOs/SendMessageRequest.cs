@@ -1,4 +1,5 @@
 ﻿using ChatApp.Domain.Enum;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,9 +11,10 @@ namespace ChatApp.Application.DTOs
     public class SendMessageRequest
     {
         public int ChatId { get; set; }
-        public string Content { get; set; } = string.Empty;
+        public string? Content { get; set; }
         public MessageType MessageType { get; set; } = MessageType.Text;
-        public int? MediaFileId { get; set; }
         public int? ReplyToMessageId { get; set; }
+        public IFormFile? File { get; set; }
     }
+
 }

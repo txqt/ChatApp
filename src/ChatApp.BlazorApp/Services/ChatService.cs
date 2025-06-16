@@ -10,6 +10,7 @@ namespace ChatApp.BlazorApp.Services
     {
         Task<List<ChatDto>> GetUserChatsAsync();
         Task<List<MessageDto>> GetChatMessagesAsync(int chatId, int page = 1);
+        Task<MessageDto> SendMessageAsync(MultipartFormDataContent content);
         Task<MessageDto> SendMessageAsync(SendMessageRequest request);
         Task<ChatDto> CreateDirectChatAsync(string userId);
         Task<ChatDto> CreateGroupChatAsync(CreateGroupChatRequest request);
@@ -84,6 +85,15 @@ namespace ChatApp.BlazorApp.Services
         public async Task<MessageDto> SendMessageAsync(SendMessageRequest request)
         {
             var response = await _httpClient.PostAsJsonAsync("/api/message", request);
+            response.EnsureSuccessStatusCode();
+
+            var message = await response.Content.ReadFromJsonAsync<MessageDto>(_jsonOptions);
+            return message!;
+        }
+
+        public async Task<MessageDto> SendMessageAsync(MultipartFormDataContent content)
+        {
+            var response = await _httpClient.PostAsync("/api/message", content);
             response.EnsureSuccessStatusCode();
 
             var message = await response.Content.ReadFromJsonAsync<MessageDto>(_jsonOptions);

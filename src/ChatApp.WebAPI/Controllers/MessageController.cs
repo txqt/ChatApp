@@ -5,6 +5,7 @@ using ChatApp.Domain.Enum;
 using ChatApp.Infrastructure.Services;
 using ChatApp.WebAPI.Controllers;
 using ChatApp.WebAPI.Hubs;
+using ChatApp.WebAPI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -17,35 +18,54 @@ namespace ChatApp.WebAPI.Controllers
         private readonly IWebHostEnvironment _environment;
         private readonly IHubContext<ChatHub> _chatHubContext;
         private readonly IChatPermissionService _chatPermissionService;
+        private readonly IMediaService _mediaService;
 
-        public MessageController(IApplicationDbContext context, IWebHostEnvironment environment, IHubContext<ChatHub> chatHubContext, IUserService userService, IChatPermissionService chatPermissionService) : base(userService)
+        public MessageController(IApplicationDbContext context, IWebHostEnvironment environment, IHubContext<ChatHub> chatHubContext, IUserService userService, IChatPermissionService chatPermissionService, IMediaService mediaService) : base(userService)
         {
             _context = context;
             _environment = environment;
             _chatHubContext = chatHubContext;
             _chatPermissionService = chatPermissionService;
+            _mediaService = mediaService;
         }
 
         [HttpPost]
-        public async Task<IActionResult> SendMessage([FromBody] SendMessageRequest request)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> SendMessage([FromForm] SendMessageRequest request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var permission = await _chatPermissionService.CanUserPerformAction(CurrentUserId, request.ChatId, ChatPermissions.SendMessages);
-            if(!permission)
+            // 1. Phân quyền
+            if (!await _chatPermissionService
+                .CanUserPerformAction(CurrentUserId, request.ChatId, ChatPermissions.SendMessages))
                 return Forbid("You don't have permission to send messages in this chat");
 
-            // Validate reply message nếu có
+            // 2. Xử lý reply-to
             if (request.ReplyToMessageId.HasValue)
             {
-                var replyMessage = await _context.Messages
-                    .FirstOrDefaultAsync(m => m.MessageId == request.ReplyToMessageId.Value && m.ChatId == request.ChatId);
-
-                if (replyMessage == null)
+                var exists = await _context.Messages
+                    .AnyAsync(m => m.MessageId == request.ReplyToMessageId.Value
+                                   && m.ChatId == request.ChatId);
+                if (!exists)
                     return BadRequest("Reply message not found");
             }
 
+            int? mediaFileId = null;
+
+            if (request.File != null && request.File.Length > 0)
+            {
+                // Xác định kiểu
+                var mime = request.File.ContentType;
+                if (mime.StartsWith("image/")) request.MessageType = MessageType.Image;
+                else if (mime.StartsWith("video/")) request.MessageType = MessageType.Video;
+                else if (mime.StartsWith("audio/")) request.MessageType = MessageType.Audio;
+                else request.MessageType = MessageType.File;
+
+                mediaFileId = await _mediaService.SaveMediaFileAsync(request.File, CurrentUserId);
+            }
+
+            // 4. Tạo message và lưu database
             var message = new Message
             {
                 ChatId = request.ChatId,
@@ -53,30 +73,29 @@ namespace ChatApp.WebAPI.Controllers
                 Content = request.Content,
                 MessageType = request.MessageType,
                 ReplyToMessageId = request.ReplyToMessageId,
-                MediaFileId = request.MediaFileId,
+                MediaFileId = mediaFileId,
                 CreatedAt = DateTime.UtcNow
             };
-
             _context.Messages.Add(message);
             await _context.SaveChangesAsync();
 
-            // Update chat's last message
+            // Update chat last message
             var chat = await _context.Chats.FindAsync(request.ChatId);
             if (chat != null)
             {
-                chat.UpdatedAt = DateTime.UtcNow;
                 chat.LastMessageId = message.MessageId;
+                chat.UpdatedAt = DateTime.UtcNow;
             }
 
             await _context.SaveChangesAsync();
 
-            // Load message với details để return
-            var messageWithDetails = await GetMessageWithDetails(message.MessageId);
+            // 5. Trả về và push real-time
+            var dto = await GetMessageWithDetails(message.MessageId);
+            await _chatHubContext
+                .Clients.Group($"Chat_{request.ChatId}")
+                .SendAsync("ReceiveMessage", dto);
 
-            await _chatHubContext.Clients.Group("Chat_"+request.ChatId.ToString())
-                .SendAsync("ReceiveMessage", messageWithDetails);
-
-            return Ok(messageWithDetails);
+            return Ok(dto);
         }
 
         [HttpPut("{messageId}")]
@@ -131,73 +150,6 @@ namespace ChatApp.WebAPI.Controllers
             return Ok(new { message = "Message deleted successfully", deleteForEveryone });
         }
 
-        [HttpPost("upload")]
-        public async Task<IActionResult> UploadFile(IFormFile file)
-        {
-            if (file == null || file.Length == 0)
-                return BadRequest("No file uploaded");
-
-            // Validate file size (max 50MB)
-            if (file.Length > 50 * 1024 * 1024)
-                return BadRequest("File size cannot exceed 50MB");
-
-            // Validate file type
-            var allowedTypes = new[] { "image/", "video/", "audio/", "application/pdf", "text/", "application/msword", "application/vnd.openxmlformats-officedocument" };
-            if (!allowedTypes.Any(type => file.ContentType.StartsWith(type)))
-                return BadRequest("File type not allowed");
-
-            try
-            {
-                var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads");
-                if (!Directory.Exists(uploadsFolder))
-                    Directory.CreateDirectory(uploadsFolder);
-
-                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
-                var filePath = Path.Combine(uploadsFolder, fileName);
-
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await file.CopyToAsync(stream);
-                }
-
-                // Create MediaFile record
-                var mediaFile = new MediaFile
-                {
-                    FileName = fileName,
-                    OriginalFileName = file.FileName,
-                    ContentType = file.ContentType,
-                    FilePath = $"/uploads/{fileName}",
-                    FileSize = file.Length,
-                    UploadedBy = CurrentUserId,
-                    UploadedAt = DateTime.UtcNow
-                };
-
-                // Generate thumbnail for images
-                if (file.ContentType.StartsWith("image/"))
-                {
-                    await GenerateThumbnail(filePath, fileName);
-                    mediaFile.ThumbnailPath = $"/uploads/thumbnails/{fileName}";
-                }
-
-                _context.MediaFiles.Add(mediaFile);
-                await _context.SaveChangesAsync();
-
-                return Ok(new
-                {
-                    fileId = mediaFile.FileId,
-                    fileName = mediaFile.FileName,
-                    originalFileName = mediaFile.OriginalFileName,
-                    filePath = mediaFile.FilePath,
-                    thumbnailPath = mediaFile.ThumbnailPath,
-                    contentType = mediaFile.ContentType,
-                    fileSize = mediaFile.FileSize
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Error uploading file: {ex.Message}");
-            }
-        }
 
         [HttpGet("search")]
         public async Task<IActionResult> SearchMessages([FromQuery] int chatId, [FromQuery] string query, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
