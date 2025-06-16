@@ -631,7 +631,7 @@
     async Task ShowNewChatModal()
     {
         var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.False };
-        var dialog = DialogService.Show<NewChatModal>("New Chat", options);
+        var dialog = DialogService.Show<NewChatModal>("New Group", options);
         var result = await dialog.Result;
 
         if (!result.Canceled && result.Data is CreateGroupChatRequest info)

@@ -54,6 +54,6 @@ builder.Services.AddBlazoredModal();
 builder.Services.AddScoped<ApiService>();
 builder.Services.AddMudServices();
 builder.Services.AddBlazoredLocalStorage();
-builder.Services.AddSingleton<ThemeService>();
+builder.Services.AddScoped<ThemeService>();
 
 await builder.Build().RunAsync();
