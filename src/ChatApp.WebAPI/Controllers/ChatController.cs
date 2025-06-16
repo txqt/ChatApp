@@ -13,11 +13,13 @@ namespace ChatApp.WebAPI.Controllers
     {
         private readonly IApplicationDbContext _context;
         private readonly IChatPermissionService _chatPermissionService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public ChatController(IApplicationDbContext context, IUserService userService, IChatPermissionService chatPermissionService) : base(userService)
+        public ChatController(IApplicationDbContext context, IUserService userService, IChatPermissionService chatPermissionService, IHttpContextAccessor httpContextAccessor) : base(userService)
         {
             _context = context;
             _chatPermissionService = chatPermissionService;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         [HttpGet]
@@ -204,50 +206,87 @@ namespace ChatApp.WebAPI.Controllers
                 return Forbid("You don't have permission to view messages in this chat");
 
             var messages = await _context.Messages
-                .Where(m => m.ChatId == chatId && !m.IsDeleted)
-                .Include(m => m.Sender)
-                .Include(m => m.MediaFile)
-                .Include(m => m.ReplyToMessage)
-                    .ThenInclude(rm => rm.Sender)
-                .OrderByDescending(m => m.CreatedAt)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(m => new MessageDto
+            .Where(m => m.ChatId == chatId && !m.IsDeleted)
+            .Include(m => m.Sender)
+            .Include(m => m.MediaFile)
+            .Include(m => m.ReplyToMessage)
+                .ThenInclude(rm => rm.Sender)
+            .OrderByDescending(m => m.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(m => new MessageDto
+            {
+                MessageId = m.MessageId,
+                Content = m.Content,
+                MessageType = m.MessageType,
+                CreatedAt = m.CreatedAt,
+                UpdatedAt = m.UpdatedAt,
+                IsEdited = m.IsEdited,
+                Sender = new UserDto
                 {
-                    MessageId = m.MessageId,
-                    Content = m.Content,
-                    MessageType = m.MessageType,
-                    CreatedAt = m.CreatedAt,
-                    UpdatedAt = m.UpdatedAt,
-                    IsEdited = m.IsEdited,
+                    Id = m.Sender.Id,
+                    DisplayName = m.Sender.DisplayName,
+                    AvatarUrl = m.Sender.AvatarUrl
+                },
+                MediaFile = m.MediaFile != null ? new MediaFileModel
+                {
+                    FileId = m.MediaFile.FileId,
+                    FileName = m.MediaFile.FileName,
+                    ContentType = m.MediaFile.ContentType,
+                    FileSize = m.MediaFile.FileSize,
+                    FilePath = m.MediaFile.FilePath,
+                    ThumbnailPath = m.MediaFile.ThumbnailPath
+                } : null,
+                ReplyTo = m.ReplyToMessage != null ? new MessageDto
+                {
+                    MessageId = m.ReplyToMessage.MessageId,
+                    Content = m.ReplyToMessage.Content,
                     Sender = new UserDto
                     {
-                        Id = m.Sender.Id,
-                        DisplayName = m.Sender.DisplayName,
-                        AvatarUrl = m.Sender.AvatarUrl
-                    },
-                    MediaFile = m.MediaFile != null ? new MediaFileModel
-                    {
-                        FileId = m.MediaFile.FileId,
-                        FileName = m.MediaFile.FileName,
-                        ContentType = m.MediaFile.ContentType,
-                        FileSize = m.MediaFile.FileSize,
-                        ThumbnailPath = m.MediaFile.ThumbnailPath
-                    } : null,
-                    ReplyTo = m.ReplyToMessage != null ? new MessageDto
-                    {
-                        MessageId = m.ReplyToMessage.MessageId,
-                        Content = m.ReplyToMessage.Content,
-                        Sender = new UserDto
-                        {
-                            Id = m.ReplyToMessage.Sender.Id,
-                            DisplayName = m.ReplyToMessage.Sender.DisplayName
-                        }
-                    } : null
-                })
-                .ToListAsync();
+                        Id = m.ReplyToMessage.Sender.Id,
+                        DisplayName = m.ReplyToMessage.Sender.DisplayName,
+                        AvatarUrl = m.ReplyToMessage.Sender.AvatarUrl
+                    }
+                } : null
+            })
+            .ToListAsync();
 
-            return Ok(messages.OrderBy(m => m.CreatedAt));
+            // 2) Build baseUrl
+            var req = _httpContextAccessor.HttpContext!.Request;
+            var baseUrl = $"{req.Scheme}://{req.Host}";
+
+            // 3) Prefix tất cả các đường dẫn tương đối
+            foreach (var msg in messages)
+            {
+                // MediaFile
+                if (msg.MediaFile != null)
+                {
+                    msg.MediaFile.FilePath = Prefix(baseUrl, msg.MediaFile.FilePath);
+                    msg.MediaFile.ThumbnailPath = Prefix(baseUrl, msg.MediaFile.ThumbnailPath);
+                }
+
+                // Sender avatar
+                if (!string.IsNullOrEmpty(msg.Sender.AvatarUrl))
+                    msg.Sender.AvatarUrl = Prefix(baseUrl, msg.Sender.AvatarUrl);
+
+                // ReplyTo sender avatar
+                if (msg.ReplyTo?.Sender != null && !string.IsNullOrEmpty(msg.ReplyTo.Sender.AvatarUrl))
+                    msg.ReplyTo.Sender.AvatarUrl = Prefix(baseUrl, msg.ReplyTo.Sender.AvatarUrl);
+            }
+
+            // 4) Đảo lại thứ tự tăng dần trước khi trả về
+            var ordered = messages.OrderBy(m => m.CreatedAt).ToList();
+            return Ok(ordered);
+        }
+
+        private static string? Prefix(string baseUrl, string? relativePath)
+        {
+            if (string.IsNullOrEmpty(relativePath) || Uri.IsWellFormedUriString(relativePath, UriKind.Absolute))
+                return relativePath;
+            // đảm bảo chỉ gắn 1 lần
+            return relativePath.StartsWith("/")
+                 ? baseUrl + relativePath
+                 : $"{baseUrl}/{relativePath}";
         }
     }
 }

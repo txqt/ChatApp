@@ -19,14 +19,16 @@ namespace ChatApp.WebAPI.Controllers
         private readonly IHubContext<ChatHub> _chatHubContext;
         private readonly IChatPermissionService _chatPermissionService;
         private readonly IMediaService _mediaService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public MessageController(IApplicationDbContext context, IWebHostEnvironment environment, IHubContext<ChatHub> chatHubContext, IUserService userService, IChatPermissionService chatPermissionService, IMediaService mediaService) : base(userService)
+        public MessageController(IApplicationDbContext context, IWebHostEnvironment environment, IHubContext<ChatHub> chatHubContext, IUserService userService, IChatPermissionService chatPermissionService, IMediaService mediaService, IHttpContextAccessor httpContextAccessor) : base(userService)
         {
             _context = context;
             _environment = environment;
             _chatHubContext = chatHubContext;
             _chatPermissionService = chatPermissionService;
             _mediaService = mediaService;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         [HttpPost]
@@ -89,8 +91,8 @@ namespace ChatApp.WebAPI.Controllers
 
             await _context.SaveChangesAsync();
 
-            // 5. Trả về và push real-time
-            var dto = await GetMessageWithDetails(message.MessageId);
+            var dto = ConvertToMessageDto(message);
+
             await _chatHubContext
                 .Clients.Group($"Chat_{request.ChatId}")
                 .SendAsync("ReceiveMessage", dto);
@@ -102,6 +104,10 @@ namespace ChatApp.WebAPI.Controllers
         public async Task<IActionResult> EditMessage(int messageId, [FromBody] EditMessageRequest request)
         {
             var message = await _context.Messages
+                .Include(m => m.Sender)
+                .Include(m => m.MediaFile)
+                .Include(m => m.ReplyToMessage)
+                    .ThenInclude(rm => rm.Sender)
                 .FirstOrDefaultAsync(m => m.MessageId == messageId && m.SenderId == CurrentUserId && !m.IsDeleted);
 
             if (message == null)
@@ -121,7 +127,7 @@ namespace ChatApp.WebAPI.Controllers
 
             await _context.SaveChangesAsync();
 
-            var messageWithDetails = await GetMessageWithDetails(messageId);
+            var messageWithDetails = ConvertToMessageDto(message);
             return Ok(messageWithDetails);
         }
 
@@ -149,7 +155,6 @@ namespace ChatApp.WebAPI.Controllers
 
             return Ok(new { message = "Message deleted successfully", deleteForEveryone });
         }
-
 
         [HttpGet("search")]
         public async Task<IActionResult> SearchMessages([FromQuery] int chatId, [FromQuery] string query, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
@@ -226,80 +231,121 @@ namespace ChatApp.WebAPI.Controllers
                 _context.Messages.Add(forwardedMessage);
                 await _context.SaveChangesAsync();
 
-                var messageWithDetails = await GetMessageWithDetails(forwardedMessage.MessageId);
+                // Load message với related entities
+                var messageWithRelations = await _context.Messages
+                    .Where(m => m.MessageId == forwardedMessage.MessageId)
+                    .Include(m => m.Sender)
+                    .Include(m => m.MediaFile)
+                    .Include(m => m.ReplyToMessage)
+                        .ThenInclude(rm => rm.Sender)
+                    .FirstOrDefaultAsync();
+
+                var messageWithDetails = ConvertToMessageDto(messageWithRelations);
                 forwardedMessages.Add(messageWithDetails);
             }
 
             return Ok(new { forwardedMessages, count = forwardedMessages.Count });
         }
 
-        private async Task<MessageDto?> GetMessageWithDetails(int messageId)
+        // Tối ưu: Thay vì GetMessageWithDetails(int messageId), sử dụng ConvertToMessageDto(Message message)
+        private MessageDto ConvertToMessageDto(Message message)
         {
-            return await _context.Messages
+            if (message == null)
+                return null;
+
+            var dto = new MessageDto
+            {
+                MessageId = message.MessageId,
+                ChatId = message.ChatId,
+                Content = message.Content,
+                MessageType = message.MessageType,
+                CreatedAt = message.CreatedAt,
+                UpdatedAt = message.UpdatedAt,
+                IsEdited = message.IsEdited,
+                IsDeleted = message.IsDeleted,
+                Sender = message.Sender != null ? new UserDto
+                {
+                    Id = message.Sender.Id,
+                    DisplayName = message.Sender.DisplayName,
+                    AvatarUrl = message.Sender.AvatarUrl
+                } : null,
+                MediaFile = message.MediaFile != null ? new MediaFileModel
+                {
+                    FileId = message.MediaFile.FileId,
+                    FileName = message.MediaFile.FileName,
+                    OriginalFileName = message.MediaFile.OriginalFileName,
+                    ContentType = message.MediaFile.ContentType,
+                    FilePath = message.MediaFile.FilePath,
+                    ThumbnailPath = message.MediaFile.ThumbnailPath,
+                    FileSize = message.MediaFile.FileSize
+                } : null,
+                ReplyTo = message.ReplyToMessage != null ? new MessageDto
+                {
+                    MessageId = message.ReplyToMessage.MessageId,
+                    Content = message.ReplyToMessage.Content,
+                    Sender = message.ReplyToMessage.Sender != null ? new UserDto
+                    {
+                        Id = message.ReplyToMessage.Sender.Id,
+                        DisplayName = message.ReplyToMessage.Sender.DisplayName,
+                        AvatarUrl = message.ReplyToMessage.Sender.AvatarUrl
+                    } : null
+                } : null,
+                IsForwarded = message.ForwardedFromMessageId.HasValue
+            };
+
+            // Xử lý URL cho MediaFile
+            if (dto.MediaFile != null)
+            {
+                var req = _httpContextAccessor.HttpContext?.Request;
+                if (req != null)
+                {
+                    var baseUrl = $"{req.Scheme}://{req.Host}";
+                    dto.MediaFile.FilePath = baseUrl + dto.MediaFile.FilePath;
+                    dto.MediaFile.ThumbnailPath = dto.MediaFile.ThumbnailPath != null
+                        ? baseUrl + dto.MediaFile.ThumbnailPath
+                        : null;
+                }
+            }
+
+            // Xử lý URL cho Avatar của ReplyTo
+            if (dto.ReplyTo?.Sender?.AvatarUrl != null)
+            {
+                var req = _httpContextAccessor.HttpContext?.Request;
+                if (req != null)
+                {
+                    var baseUrl = $"{req.Scheme}://{req.Host}";
+                    if (dto.ReplyTo.Sender.AvatarUrl.StartsWith("/"))
+                        dto.ReplyTo.Sender.AvatarUrl = baseUrl + dto.ReplyTo.Sender.AvatarUrl;
+                }
+            }
+
+            // Xử lý URL cho Avatar của Sender
+            if (dto.Sender?.AvatarUrl != null)
+            {
+                var req = _httpContextAccessor.HttpContext?.Request;
+                if (req != null)
+                {
+                    var baseUrl = $"{req.Scheme}://{req.Host}";
+                    if (dto.Sender.AvatarUrl.StartsWith("/"))
+                        dto.Sender.AvatarUrl = baseUrl + dto.Sender.AvatarUrl;
+                }
+            }
+
+            return dto;
+        }
+
+        // Giữ lại method cũ để backward compatibility (nếu cần)
+        private async Task<MessageDto> GetMessageWithDetails(int messageId)
+        {
+            var message = await _context.Messages
                 .Where(m => m.MessageId == messageId)
                 .Include(m => m.Sender)
                 .Include(m => m.MediaFile)
                 .Include(m => m.ReplyToMessage)
                     .ThenInclude(rm => rm.Sender)
-                .Select(m => new MessageDto
-                {
-                    MessageId = m.MessageId,
-                    ChatId = m.ChatId,
-                    Content = m.Content,
-                    MessageType = m.MessageType,
-                    CreatedAt = m.CreatedAt,
-                    UpdatedAt = m.UpdatedAt,
-                    IsEdited = m.IsEdited,
-                    IsDeleted = m.IsDeleted,
-                    Sender = new UserDto
-                    {
-                        Id = m.Sender.Id,
-                        DisplayName = m.Sender.DisplayName,
-                        AvatarUrl = m.Sender.AvatarUrl
-                    },
-                    MediaFile = m.MediaFile != null ? new MediaFileModel
-                    {
-                        FileId = m.MediaFile.FileId,
-                        FileName = m.MediaFile.FileName,
-                        OriginalFileName = m.MediaFile.OriginalFileName,
-                        ContentType = m.MediaFile.ContentType,
-                        FilePath = m.MediaFile.FilePath,
-                        ThumbnailPath = m.MediaFile.ThumbnailPath,
-                        FileSize = m.MediaFile.FileSize
-                    } : null,
-                    ReplyTo = m.ReplyToMessage != null ? new MessageDto
-                    {
-                        MessageId = m.ReplyToMessage.MessageId,
-                        Content = m.ReplyToMessage.Content,
-                        Sender = new UserDto
-                        {
-                            Id = m.ReplyToMessage.Sender.Id,
-                            DisplayName = m.ReplyToMessage.Sender.DisplayName,
-                            AvatarUrl = m.ReplyToMessage.Sender.AvatarUrl
-                        }
-                    } : null,
-                    IsForwarded = m.ForwardedFromMessageId.HasValue
-                })
                 .FirstOrDefaultAsync();
-        }
 
-        private async Task GenerateThumbnail(string filePath, string fileName)
-        {
-            try
-            {
-                var thumbnailsFolder = Path.Combine(_environment.WebRootPath, "uploads", "thumbnails");
-                if (!Directory.Exists(thumbnailsFolder))
-                    Directory.CreateDirectory(thumbnailsFolder);
-
-                // Simple thumbnail generation - in production use ImageSharp or similar
-                var thumbnailPath = Path.Combine(thumbnailsFolder, fileName);
-                System.IO.File.Copy(filePath, thumbnailPath, true);
-            }
-            catch (Exception ex)
-            {
-                // Log error but don't fail the upload
-                Console.WriteLine($"Error generating thumbnail: {ex.Message}");
-            }
+            return ConvertToMessageDto(message);
         }
     }
 }

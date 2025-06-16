@@ -293,10 +293,7 @@
                                                     </MudLink>
                                                 }
                                             }
-                                            else
-                                            {
-                                                <MudText Typo="Typo.body1">@msg.Content</MudText>
-                                            }
+                                            <MudText Typo="Typo.body1">@msg.Content</MudText>
                                         </div>
 
                                         <div class="d-flex justify-end align-center mt-2">
@@ -356,7 +353,7 @@
                                            Variant="Variant.Filled"
                                            Size="Size.Medium"
                                            OnClick="SendMessage"
-                                           Disabled="@(string.IsNullOrWhiteSpace(messageInput))" />
+                                           Disabled="@(string.IsNullOrWhiteSpace(messageInput) | selectedFile == null)" />
                         </div>
                         @if (selectedFile != null)
                         {

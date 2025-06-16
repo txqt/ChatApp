@@ -12,7 +12,7 @@ namespace ChatApp.Domain.Entities
         public int MessageId { get; set; }
         public int ChatId { get; set; }
         public string SenderId { get; set; }
-        public string Content { get; set; } = string.Empty;
+        public string? Content { get; set; } = string.Empty;
         public MessageType MessageType { get; set; } = MessageType.Text;
         public int? MediaFileId { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
