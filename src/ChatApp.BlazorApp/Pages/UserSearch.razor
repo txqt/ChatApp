@@ -4,14 +4,20 @@
 
 
 <div class="user-search-container">
-    <MudTextField @bind-Value="searchTerm"
-                  Placeholder="Tìm kiếm người dùng..."
-                  Adornment="Adornment.End"
-                  AdornmentIcon="@Icons.Material.Filled.Search"
-                  OnAdornmentClick="SearchUsers"
-                  Immediate="true"
-                  OnKeyUp="OnSearchKeyUp"
-                  Class="w-100" T="string" />
+    <div class="d-flex align-center">
+        <MudTextField @bind-Value="searchTerm"
+                      Placeholder="Tìm kiếm người dùng..."
+                      Immediate="true"
+                      OnKeyUp="OnSearchKeyUp"
+                      Class="w-100" T="string" />
+        <MudIconButton Icon="@Icons.Material.Filled.Search"
+                       Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       Size="Size.Medium"
+                       OnClick="SearchUsers"
+                       Disabled="@(string.IsNullOrWhiteSpace(searchTerm))" />
+    </div>
+    
 
     @if (isLoading)
     {

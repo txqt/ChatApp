@@ -29,7 +29,7 @@
 
                         <MudTabPanel Text="Settings" Value="settings">
                             <MudItem xs="12" Class="mt-4">
-                                        <MudSwitch @bind-Checked="@ThemeService.IsDarkMode" Color="Color.Primary" T="bool" ValueChanged="val => ThemeService.ToggleDarkMode()">
+                                    <MudSwitch @bind-Checked="@ThemeService.IsDarkMode" Color="Color.Primary" T="bool" ValueChanged="async _ => await ThemeService.ToggleDarkModeAsync()">
                                             Dark Mode
                                         </MudSwitch>
                             </MudItem>
@@ -51,11 +51,6 @@
 
     [CascadingParameter]
     private MainLayout? ParentLayout { get; set; }
-
-    private void ToggleDarkMode()
-    {
-        ThemeService.ToggleDarkMode();
-    }
 
     void Close() => MudDialog.Close();
 }

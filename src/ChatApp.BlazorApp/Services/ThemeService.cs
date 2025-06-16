@@ -1,9 +1,18 @@
-﻿using MudBlazor;
+﻿using Blazored.LocalStorage;
+using MudBlazor;
 
 namespace ChatApp.BlazorApp.Services
 {
     public class ThemeService
     {
+        private const string StorageKey = "darkMode";
+        private readonly ILocalStorageService _storage;
+
+        public ThemeService(ILocalStorageService storage)
+        {
+            _storage = storage;
+        }
+
         public bool IsDarkMode { get; set; } = false;
 
         private MudTheme LightTheme = new MudTheme()
@@ -32,9 +41,17 @@ namespace ChatApp.BlazorApp.Services
 
         public event Action OnChange;
 
-        public void ToggleDarkMode()
+        public async Task InitializeAsync()
+        {
+            // Đọc giá trị từ localStorage (mặc định là false nếu chưa có)
+            IsDarkMode = await _storage.GetItemAsync<bool>(StorageKey);
+            OnChange?.Invoke();
+        }
+
+        public async Task ToggleDarkModeAsync()
         {
             IsDarkMode = !IsDarkMode;
+            await _storage.SetItemAsync(StorageKey, IsDarkMode);
             OnChange?.Invoke();
         }
     }

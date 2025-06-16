@@ -5,6 +5,7 @@
 
 <MudTabs @bind-ActivePanelIndex="activeIndex" Rounded="false">
     <MudTabPanel Text="Lời mời kết bạn">
+        <div class="mt-4"></div>
         @if (pendingRequests.Any())
         {
             <MudGrid GutterSize="3">
@@ -57,6 +58,7 @@
         }
     </MudTabPanel>
     <MudTabPanel Text="Lời mời đã gửi">
+        <div class="mt-4"></div>
         @if (sentRequests.Any())
         {
             <MudGrid GutterSize="3">

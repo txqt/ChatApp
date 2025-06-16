@@ -1,4 +1,5 @@
-﻿using Blazored.Modal;
+﻿using Blazored.LocalStorage;
+using Blazored.Modal;
 using ChatApp.BlazorApp;
 using ChatApp.BlazorApp.Helpers;
 using ChatApp.BlazorApp.Services;
@@ -51,7 +52,8 @@ builder.Services.AddOidcAuthentication(options =>
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddBlazoredModal();
 builder.Services.AddScoped<ApiService>();
-builder.Services.AddSingleton<ThemeService>();
 builder.Services.AddMudServices();
+builder.Services.AddBlazoredLocalStorage();
+builder.Services.AddSingleton<ThemeService>();
 
 await builder.Build().RunAsync();
