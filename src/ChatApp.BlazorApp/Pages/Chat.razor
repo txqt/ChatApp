@@ -240,94 +240,100 @@
                         {
                             @foreach (var msg in messages)
                             {
-                                <div class="@($"d-flex mb-3 {(msg.IsFromCurrentUser ? "justify-end" : "justify-start")}")">
-                                    <MudPaper Class="@($"pa-3 {(msg.IsFromCurrentUser ? "mud-theme-primary" : "")}")"
-                                              Style="@($"max-width: 70%; border-radius: 18px; {(msg.IsFromCurrentUser ? "border-bottom-right-radius: 5px;" : "border-bottom-left-radius: 5px;")}")"
-                                              Elevation="1">
+                                <MudMenu Class="d-block align-self-auto"
+                                         ActivationEvent="@MouseEvent.RightClick"
+                                         PositionAtCursor="true">
+                                    <ActivatorContent>
+                                        <div class="@($"d-flex mb-3 {(msg.IsFromCurrentUser ? "justify-end" : "justify-start")}")">
+                                            <MudPaper Class="@($"pa-3 {(msg.IsFromCurrentUser ? "mud-theme-primary" : "")}")"
+                                                      Style="@($"max-width: 70%; border-radius: 18px; {(msg.IsFromCurrentUser ? "border-bottom-right-radius: 5px;" : "border-bottom-left-radius: 5px;")}")"
+                                                      Elevation="1">
 
-                                        @if (msg.ReplyTo != null && !msg.ReplyTo.IsDeleted)
-                                        {
-                                            <MudPaper Class="pa-2 mb-2"
-                                                      Elevation="0"
-                                                      Style="background-color: var(--mud-palette-background-grey); border-left: 3px solid var(--mud-palette-primary);">
-                                                <MudText Typo="Typo.caption" Color="Color.Primary">@msg.ReplyTo.Sender.DisplayName</MudText>
-                                                <MudText Typo="Typo.body2">
-                                                    @if (msg.ReplyTo.MessageType == MessageType.Image)
-                                                    {
-                                                        <MudIcon Icon="@Icons.Material.Filled.Image" Size="Size.Small" />
-                                                        <span>Image</span>
-                                                    }
-                                                    else if (msg.ReplyTo.MessageType == MessageType.Text)
-                                                    {
-                                                        @GetMessagePreview(msg.ReplyTo)
-                                                    }
-                                                    else
-                                                    {
-                                                        <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" />
-                                                        <span>File</span>
-                                                    }
-                                                </MudText>
-                                            </MudPaper>
-                                        }
-
-                                        <div>
-                                            @if (msg.IsDeleted)
-                                            {
-                                                <MudText Typo="Typo.body2">
-                                                    <em>Message deleted</em>
-                                                </MudText>
-                                            }
-                                            else if (msg.MediaFiles != null)
-                                            {
-                                                foreach (var mediaFile in msg.MediaFiles)
+                                                @if (msg.ReplyTo != null && !msg.ReplyTo.IsDeleted)
                                                 {
-                                                    @if (msg.MessageType == MessageType.Image)
-                                                    {
-                                                        <MudImage Src="@mediaFile.FilePath"
-                                                                  Alt="Uploaded image"
-                                                        Style="max-width: 250px; max-height: 250px; border-radius: 10px;" />
-                                                    }
-                                                    else
-                                                    {
-                                                        var category = mediaFile.ContentType switch
-                                                        {
-                                                            var ct when ct.StartsWith("image/") => "images",
-                                                            var ct when ct.StartsWith("video/") => "videos",
-                                                            var ct when ct.StartsWith("audio/") => "audios",
-                                                            _ => "others"
-                                                        };
-                                                        if (category == "images")
-                                                        {
-                                                            <MudImage Src="@mediaFile.FilePath"
-                                                                      Alt="Uploaded image"
-                                                            Style="max-width: 250px; max-height: 250px; border-radius: 10px;" />
-                                                        }
-                                                        else
-                                                        {
-                                                            <MudLink Href="@mediaFile.FilePath" Color="@Color.Warning" Target="_blank" Class="d-flex align-center">
-                                                                <MudIcon Icon="Icons.Material.Filled.AttachFile" Class="mr-2" />
-                                                                @mediaFile.OriginalFileName
-                                                            </MudLink>
-                                                        }
-                                                    }
+                                                    <MudPaper Class="pa-2 mb-2"
+                                                              Elevation="0"
+                                                              Style="background-color: var(--mud-palette-background-grey); border-left: 3px solid var(--mud-palette-primary);">
+                                                        <MudText Typo="Typo.caption" Color="Color.Primary">@msg.ReplyTo.Sender.DisplayName</MudText>
+                                                        <MudText Typo="Typo.body2">
+                                                            @if (msg.ReplyTo.MessageType == MessageType.Image)
+                                                            {
+                                                                <MudIcon Icon="@Icons.Material.Filled.Image" Size="Size.Small" />
+                                                                <span>Image</span>
+                                                            }
+                                                            else if (msg.ReplyTo.MessageType == MessageType.Text)
+                                                            {
+                                                                @GetMessagePreview(msg.ReplyTo)
+                                                            }
+                                                            else
+                                                            {
+                                                                <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" />
+                                                                <span>File</span>
+                                                            }
+                                                        </MudText>
+                                                    </MudPaper>
                                                 }
-                                            }
-                                            <MudText Typo="Typo.body1">@msg.Content</MudText>
-                                        </div>
 
-                                        <div class="d-flex justify-end align-center mt-2">
-                                            <MudText Typo="Typo.caption" Class="mr-1">
-                                                @msg.CreatedAt.ToString("HH:mm")
-                                            </MudText>
-                                            @if (msg.IsEdited && !msg.IsDeleted)
-                                            {
-                                                <MudText Typo="Typo.caption">
-                                                    <em>(edited)</em>
-                                                </MudText>
-                                            }
+                                                <div>
+                                                    @if (msg.IsDeleted)
+                                                    {
+                                                        <MudText Typo="Typo.body2">
+                                                            <em>Message deleted</em>
+                                                        </MudText>
+                                                    }
+                                                    else if (msg.MediaFiles != null)
+                                                    {
+                                                        foreach (var mediaFile in msg.MediaFiles)
+                                                        {
+                                                            @if (msg.MessageType == MessageType.Image)
+                                                            {
+                                                                <MudImage Src="@mediaFile.FilePath"
+                                                                          Alt="Uploaded image"
+                                                                          Style="max-width: 250px; max-height: 250px; border-radius: 10px;" />
+                                                            }
+                                                            else
+                                                            {
+                                                                var category = mediaFile.ContentType switch
+                                                                {
+                                                                    var ct when ct.StartsWith("image/") => "images",
+                                                                    var ct when ct.StartsWith("video/") => "videos",
+                                                                    var ct when ct.StartsWith("audio/") => "audios",
+                                                                    _ => "others"
+                                                                };
+                                                                if (category == "images")
+                                                                {
+                                                                    <MudImage Src="@mediaFile.FilePath"
+                                                                              Alt="Uploaded image"
+                                                                              Style="max-width: 250px; max-height: 250px; border-radius: 10px;" />
+                                                                }
+                                                                else
+                                                                {
+                                                                    <MudLink Href="@mediaFile.FilePath" Color="@Color.Warning" Target="_blank" Class="d-flex align-center">
+                                                                        <MudIcon Icon="Icons.Material.Filled.AttachFile" Class="mr-2" />
+                                                                        @mediaFile.OriginalFileName
+                                                                    </MudLink>
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                    <MudText Typo="Typo.body1">@msg.Content</MudText>
+                                                </div>
+
+                                                <div class="d-flex justify-end align-center mt-2">
+                                                    <MudText Typo="Typo.caption" Class="mr-1">
+                                                        @msg.CreatedAt.ToString("HH:mm")
+                                                    </MudText>
+                                                    @if (msg.IsEdited && !msg.IsDeleted)
+                                                    {
+                                                        <MudText Typo="Typo.caption">
+                                                            <em>(edited)</em>
+                                                        </MudText>
+                                                    }
+                                                </div>
+                                            </MudPaper>
                                         </div>
-                                    </MudPaper>
-                                </div>
+                                    </ActivatorContent>
+                                </MudMenu>
                             }
                         }
 
@@ -353,8 +359,12 @@
                     <!-- Input Area -->
                     <MudPaper Class="pa-3" Elevation="0" Square="true">
                         <div class="d-flex align-center">
-                            <InputFile OnChange="OnFilesSelected" accept="image/*,application/pdf" multiple Class="mr-2" />
-
+                            <InputFile id="fileInput" OnChange="OnFilesSelected" accept="image/*,application/pdf" multiple Class="mr-2" hidden />
+                            <MudMenu Icon="@Icons.Material.Filled.Add" Color="Color.Primary" AriaLabel="Open user menu">
+                                <MudMenuItem OnClick="@(() => OpenFileUpload())">
+                                    Upload Files
+                                </MudMenuItem>
+                            </MudMenu>
                             <MudTextField @ref="InputRef"
                                           T="string"
                                           @bind-Value="messageInput"
@@ -517,6 +527,11 @@
         _shouldScroll = true;
         await ChatService.StopTypingAsync(selectedChat.ChatId);
         await InputRef.FocusAsync();
+    }
+
+    private async Task OpenFileUpload()
+    {
+        await JSRuntime.InvokeVoidAsync("openFileUpload");
     }
 
     private async Task OnFilesSelected(InputFileChangeEventArgs e)

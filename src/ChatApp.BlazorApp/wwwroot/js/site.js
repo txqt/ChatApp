@@ -31,3 +31,14 @@ window.signalRAddBeforeUnload = function (dotnetHelper) {
         dotnetHelper.invokeMethodAsync('OnBrowserUnload');
     });
 };
+
+window.openFileUpload = () => {
+    setTimeout(() => {
+        var fileInput = document.getElementById('fileInput');
+        if (fileInput) {
+            fileInput.click();
+        } else {
+            console.error("fileInput không tồn tại!");
+        }
+    }, 100);
+};
