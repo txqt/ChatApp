@@ -1,8 +1,10 @@
 ﻿using ChatApp.Domain.Enum;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace ChatApp.Domain.Entities
@@ -14,7 +16,10 @@ namespace ChatApp.Domain.Entities
         public string SenderId { get; set; }
         public string? Content { get; set; } = string.Empty;
         public MessageType MessageType { get; set; } = MessageType.Text;
-        public int? MediaFileId { get; set; }
+        /// <summary>
+        /// JSON array of media IDs, e.g. "[1,5,9]"
+        /// </summary>
+        public string? MediaFileIdsJson { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
         public bool IsDeleted { get; set; } = false;
@@ -33,12 +38,20 @@ namespace ChatApp.Domain.Entities
         // Navigation properties
         public Chat Chat { get; set; } = null!;
         public ApplicationUser Sender { get; set; } = null!;
-        public MediaFile? MediaFile { get; set; }
         public Message? ReplyToMessage { get; set; }
         public Message? ThreadRootMessage { get; set; }
         public ApplicationUser? DeletedByUser { get; set; }
         public ICollection<MessageStatus> MessageStatuses { get; set; } = new List<MessageStatus>();
         public ICollection<Message> Replies { get; set; } = new List<Message>();
         public ICollection<Message> ThreadMessages { get; set; } = new List<Message>();
+
+        [NotMapped]
+        public List<int> MediaFileIds
+        {
+            get => string.IsNullOrEmpty(MediaFileIdsJson)
+                ? new List<int>()
+                : JsonSerializer.Deserialize<List<int>>(MediaFileIdsJson)!;
+            set => MediaFileIdsJson = JsonSerializer.Serialize(value);
+        }
     }
 }

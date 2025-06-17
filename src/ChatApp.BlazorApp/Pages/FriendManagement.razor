@@ -54,7 +54,6 @@
 
     private async Task HandleStartChat(string userId)
     {
-        await OnStartChat?.InvokeAsync(userId);
         await JSRuntime.InvokeVoidAsync("alert", $"Bắt đầu chat với user ID: {userId}");
         await ChatService.CreateDirectChatAsync(userId);
         NavigationManager.NavigateTo("/chat", true);

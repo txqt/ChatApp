@@ -6,6 +6,7 @@ using ChatApp.Infrastructure.Services;
 using ChatApp.WebAPI.Attributes;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace ChatApp.WebAPI.Controllers
 {
@@ -198,95 +199,140 @@ namespace ChatApp.WebAPI.Controllers
         [HttpGet("{chatId}/messages")]
         public async Task<IActionResult> GetChatMessages(int chatId, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
         {
-            if(CurrentUser == null)
+            if (CurrentUser == null)
                 return Unauthorized("You must be logged in to access chat messages");
 
-            var permissions = await _chatPermissionService.CanUserPerformAction(CurrentUser, chatId, ChatPermissions.ViewMessageHistory);
-            if (!permissions)
+            var canView = await _chatPermissionService
+                .CanUserPerformAction(CurrentUser, chatId, ChatPermissions.ViewMessageHistory);
+            if (!canView)
                 return Forbid("You don't have permission to view messages in this chat");
 
-            var messages = await _context.Messages
-            .Where(m => m.ChatId == chatId && !m.IsDeleted)
-            .Include(m => m.Sender)
-            .Include(m => m.MediaFile)
-            .Include(m => m.ReplyToMessage)
-                .ThenInclude(rm => rm.Sender)
-            .OrderByDescending(m => m.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(m => new MessageDto
-            {
-                MessageId = m.MessageId,
-                Content = m.Content,
-                MessageType = m.MessageType,
-                CreatedAt = m.CreatedAt,
-                UpdatedAt = m.UpdatedAt,
-                IsEdited = m.IsEdited,
-                Sender = new UserDto
+            // 1) Lấy messages cơ bản, bao gồm cột JSON MediaFileIdsJson
+            var raw = await _context.Messages
+                .Where(m => m.ChatId == chatId && !m.IsDeleted)
+                .Include(m => m.Sender)
+                .Include(m => m.ReplyToMessage)
+                    .ThenInclude(rm => rm.Sender)
+                .OrderByDescending(m => m.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(m => new
                 {
-                    Id = m.Sender.Id,
-                    DisplayName = m.Sender.DisplayName,
-                    AvatarUrl = m.Sender.AvatarUrl
-                },
-                MediaFile = m.MediaFile != null ? new MediaFileModel
-                {
-                    FileId = m.MediaFile.FileId,
-                    FileName = m.MediaFile.FileName,
-                    ContentType = m.MediaFile.ContentType,
-                    FileSize = m.MediaFile.FileSize,
-                    FilePath = m.MediaFile.FilePath,
-                    ThumbnailPath = m.MediaFile.ThumbnailPath
-                } : null,
-                ReplyTo = m.ReplyToMessage != null ? new MessageDto
-                {
-                    MessageId = m.ReplyToMessage.MessageId,
-                    Content = m.ReplyToMessage.Content,
-                    Sender = new UserDto
+                    m.MessageId,
+                    m.Content,
+                    m.MessageType,
+                    m.CreatedAt,
+                    m.UpdatedAt,
+                    m.IsEdited,
+                    SenderId = m.Sender.Id,
+                    SenderName = m.Sender.DisplayName,
+                    SenderAvatar = m.Sender.AvatarUrl,
+                    MediaFileIdsJson = m.MediaFileIdsJson,        // JSON string: "[1,5,9]"
+                    ReplyTo = m.ReplyToMessage == null ? null : new
                     {
-                        Id = m.ReplyToMessage.Sender.Id,
-                        DisplayName = m.ReplyToMessage.Sender.DisplayName,
-                        AvatarUrl = m.ReplyToMessage.Sender.AvatarUrl
+                        m.ReplyToMessage.MessageId,
+                        m.ReplyToMessage.Content,
+                        SenderId = m.ReplyToMessage.Sender.Id,
+                        SenderName = m.ReplyToMessage.Sender.DisplayName,
+                        SenderAvatar = m.ReplyToMessage.Sender.AvatarUrl
                     }
-                } : null
-            })
-            .ToListAsync();
+                })
+                .ToListAsync();
 
-            // 2) Build baseUrl
+            // 2) Tập hợp tất cả mediaId từ mọi message
+            var allMediaIds = raw
+                .Where(x => !string.IsNullOrEmpty(x.MediaFileIdsJson))
+                .SelectMany(x => JsonSerializer.Deserialize<List<int>>(x.MediaFileIdsJson)!)
+                .Distinct()
+                .ToList();
+
+            // 3) Query một lần để lấy các MediaFile
+            var mediaEntities = await _context.MediaFiles
+                .Where(f => allMediaIds.Contains(f.FileId))
+                .ToDictionaryAsync(f => f.FileId);
+
+            // 4) Lấy baseUrl
             var req = _httpContextAccessor.HttpContext!.Request;
             var baseUrl = $"{req.Scheme}://{req.Host}";
 
-            // 3) Prefix tất cả các đường dẫn tương đối
-            foreach (var msg in messages)
-            {
-                // MediaFile
-                if (msg.MediaFile != null)
+            // 5) Map về DTO và prefix đường dẫn
+            var dtos = raw
+                .Select(x =>
                 {
-                    msg.MediaFile.FilePath = Prefix(baseUrl, msg.MediaFile.FilePath);
-                    msg.MediaFile.ThumbnailPath = Prefix(baseUrl, msg.MediaFile.ThumbnailPath);
-                }
+                    // Parse media IDs
+                    var ids = string.IsNullOrEmpty(x.MediaFileIdsJson)
+                        ? new List<int>()
+                        : JsonSerializer.Deserialize<List<int>>(x.MediaFileIdsJson)!;
 
-                // Sender avatar
-                if (!string.IsNullOrEmpty(msg.Sender.AvatarUrl))
-                    msg.Sender.AvatarUrl = Prefix(baseUrl, msg.Sender.AvatarUrl);
+                    // Lấy model tương ứng
+                    var mediaList = ids
+                        .Where(id => mediaEntities.ContainsKey(id))
+                        .Select(id =>
+                        {
+                            var e = mediaEntities[id];
+                            return new MediaFileModel
+                            {
+                                FileId = e.FileId,
+                                FileName = e.FileName,
+                                OriginalFileName = e.OriginalFileName,
+                                ContentType = e.ContentType,
+                                FileSize = e.FileSize,
+                                FilePath = Prefix(baseUrl, e.FilePath),
+                                ThumbnailPath = e.ThumbnailPath != null
+                                                    ? Prefix(baseUrl, e.ThumbnailPath)
+                                                    : null
+                            };
+                        })
+                        .ToList();
 
-                // ReplyTo sender avatar
-                if (msg.ReplyTo?.Sender != null && !string.IsNullOrEmpty(msg.ReplyTo.Sender.AvatarUrl))
-                    msg.ReplyTo.Sender.AvatarUrl = Prefix(baseUrl, msg.ReplyTo.Sender.AvatarUrl);
-            }
+                    MessageDto? replyDto = null;
+                    if (x.ReplyTo != null)
+                    {
+                        replyDto = new MessageDto
+                        {
+                            MessageId = x.ReplyTo.MessageId,
+                            Content = x.ReplyTo.Content,
+                            Sender = new UserDto
+                            {
+                                Id = x.ReplyTo.SenderId,
+                                DisplayName = x.ReplyTo.SenderName,
+                                AvatarUrl = Prefix(baseUrl, x.ReplyTo.SenderAvatar)
+                            }
+                        };
+                    }
 
-            // 4) Đảo lại thứ tự tăng dần trước khi trả về
-            var ordered = messages.OrderBy(m => m.CreatedAt).ToList();
-            return Ok(ordered);
+                    return new MessageDto
+                    {
+                        MessageId = x.MessageId,
+                        Content = x.Content,
+                        MessageType = x.MessageType,
+                        CreatedAt = x.CreatedAt,
+                        UpdatedAt = x.UpdatedAt,
+                        IsEdited = x.IsEdited,
+                        Sender = new UserDto
+                        {
+                            Id = x.SenderId,
+                            DisplayName = x.SenderName,
+                            AvatarUrl = Prefix(baseUrl, x.SenderAvatar)
+                        },
+                        MediaFiles = mediaList,
+                        ReplyTo = replyDto,
+                        IsForwarded = false 
+                    };
+                })
+                .OrderBy(m => m.CreatedAt)
+                .ToList();
+
+            return Ok(dtos);
         }
 
-        private static string? Prefix(string baseUrl, string? relativePath)
+        private static string Prefix(string baseUrl, string? relativePath)
         {
             if (string.IsNullOrEmpty(relativePath) || Uri.IsWellFormedUriString(relativePath, UriKind.Absolute))
-                return relativePath;
-            // đảm bảo chỉ gắn 1 lần
+                return relativePath!;
             return relativePath.StartsWith("/")
-                 ? baseUrl + relativePath
-                 : $"{baseUrl}/{relativePath}";
+                ? baseUrl + relativePath
+                : $"{baseUrl}/{relativePath}";
         }
     }
 }

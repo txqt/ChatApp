@@ -53,18 +53,31 @@ namespace ChatApp.WebAPI.Controllers
                     return BadRequest("Reply message not found");
             }
 
-            int? mediaFileId = null;
-
-            if (request.File != null && request.File.Length > 0)
+            var savedMedia = new List<MediaFile>();
+            if (request.Files == null || request.Files.Count == 0)
             {
-                // Xác định kiểu
-                var mime = request.File.ContentType;
-                if (mime.StartsWith("image/")) request.MessageType = MessageType.Image;
-                else if (mime.StartsWith("video/")) request.MessageType = MessageType.Video;
-                else if (mime.StartsWith("audio/")) request.MessageType = MessageType.Audio;
-                else request.MessageType = MessageType.File;
+                // Không có file
+                request.MessageType = MessageType.Text;
+            }
+            else
+            {
+                foreach (var file in request.Files)
+                {
+                    var result = await _mediaService.SaveMediaFileAsync(file, CurrentUserId);
+                    savedMedia.Add(result);
+                }
+                bool allImage = request.Files.All(f => f.ContentType.StartsWith("image/"));
+                bool allVideo = request.Files.All(f => f.ContentType.StartsWith("video/"));
+                bool allAudio = request.Files.All(f => f.ContentType.StartsWith("audio/"));
 
-                mediaFileId = await _mediaService.SaveMediaFileAsync(request.File, CurrentUserId);
+                if (allImage)
+                    request.MessageType = MessageType.Image;
+                else if (allVideo)
+                    request.MessageType = MessageType.Video;
+                else if (allAudio)
+                    request.MessageType = MessageType.Audio;
+                else
+                    request.MessageType = MessageType.File;
             }
 
             // 4. Tạo message và lưu database
@@ -74,8 +87,8 @@ namespace ChatApp.WebAPI.Controllers
                 SenderId = CurrentUserId,
                 Content = request.Content,
                 MessageType = request.MessageType,
+                MediaFileIds = savedMedia.Select(x=>x.FileId).ToList() ?? new List<int>(), // Chỉ lấy file đầu tiên nếu có nhiều file
                 ReplyToMessageId = request.ReplyToMessageId,
-                MediaFileId = mediaFileId,
                 CreatedAt = DateTime.UtcNow
             };
             _context.Messages.Add(message);
@@ -91,7 +104,7 @@ namespace ChatApp.WebAPI.Controllers
 
             await _context.SaveChangesAsync();
 
-            var dto = ConvertToMessageDto(message);
+            var dto = ConvertToMessageDto(message, savedMedia);
 
             await _chatHubContext
                 .Clients.Group($"Chat_{request.ChatId}")
@@ -105,7 +118,6 @@ namespace ChatApp.WebAPI.Controllers
         {
             var message = await _context.Messages
                 .Include(m => m.Sender)
-                .Include(m => m.MediaFile)
                 .Include(m => m.ReplyToMessage)
                     .ThenInclude(rm => rm.Sender)
                 .FirstOrDefaultAsync(m => m.MessageId == messageId && m.SenderId == CurrentUserId && !m.IsDeleted);
@@ -127,7 +139,10 @@ namespace ChatApp.WebAPI.Controllers
 
             await _context.SaveChangesAsync();
 
-            var messageWithDetails = ConvertToMessageDto(message);
+            var mediaFiles = await _mediaService.GetMediaFilesAsync(message.MediaFileIds, CurrentUserId);
+
+            var messageWithDetails = ConvertToMessageDto(message, mediaFiles);
+
             return Ok(messageWithDetails);
         }
 
@@ -193,7 +208,6 @@ namespace ChatApp.WebAPI.Controllers
         public async Task<IActionResult> ForwardMessage(int messageId, [FromBody] ForwardMessageRequest request)
         {
             var originalMessage = await _context.Messages
-                .Include(m => m.MediaFile)
                 .FirstOrDefaultAsync(m => m.MessageId == messageId && !m.IsDeleted);
 
             if (originalMessage == null)
@@ -222,7 +236,7 @@ namespace ChatApp.WebAPI.Controllers
                     SenderId = CurrentUserId,
                     Content = originalMessage.Content,
                     MessageType = originalMessage.MessageType,
-                    MediaFileId = originalMessage.MediaFileId,
+                    MediaFileIds = originalMessage.MediaFileIds,
                     ForwardedFromChatId = originalMessage.ChatId,
                     ForwardedFromMessageId = originalMessage.MessageId,
                     CreatedAt = DateTime.UtcNow
@@ -235,20 +249,20 @@ namespace ChatApp.WebAPI.Controllers
                 var messageWithRelations = await _context.Messages
                     .Where(m => m.MessageId == forwardedMessage.MessageId)
                     .Include(m => m.Sender)
-                    .Include(m => m.MediaFile)
                     .Include(m => m.ReplyToMessage)
                         .ThenInclude(rm => rm.Sender)
                     .FirstOrDefaultAsync();
 
-                var messageWithDetails = ConvertToMessageDto(messageWithRelations);
+                var mediaFiles = await _mediaService.GetMediaFilesAsync(messageWithRelations.MediaFileIds, CurrentUserId);
+
+                var messageWithDetails = ConvertToMessageDto(messageWithRelations, mediaFiles);
                 forwardedMessages.Add(messageWithDetails);
             }
 
             return Ok(new { forwardedMessages, count = forwardedMessages.Count });
         }
 
-        // Tối ưu: Thay vì GetMessageWithDetails(int messageId), sử dụng ConvertToMessageDto(Message message)
-        private MessageDto ConvertToMessageDto(Message message)
+        private MessageDto ConvertToMessageDto(Message message, List<MediaFile>? mediaFiles)
         {
             if (message == null)
                 return null;
@@ -269,16 +283,6 @@ namespace ChatApp.WebAPI.Controllers
                     DisplayName = message.Sender.DisplayName,
                     AvatarUrl = message.Sender.AvatarUrl
                 } : null,
-                MediaFile = message.MediaFile != null ? new MediaFileModel
-                {
-                    FileId = message.MediaFile.FileId,
-                    FileName = message.MediaFile.FileName,
-                    OriginalFileName = message.MediaFile.OriginalFileName,
-                    ContentType = message.MediaFile.ContentType,
-                    FilePath = message.MediaFile.FilePath,
-                    ThumbnailPath = message.MediaFile.ThumbnailPath,
-                    FileSize = message.MediaFile.FileSize
-                } : null,
                 ReplyTo = message.ReplyToMessage != null ? new MessageDto
                 {
                     MessageId = message.ReplyToMessage.MessageId,
@@ -292,20 +296,32 @@ namespace ChatApp.WebAPI.Controllers
                 } : null,
                 IsForwarded = message.ForwardedFromMessageId.HasValue
             };
-
+            var mediaFileModels = new List<MediaFileModel>();
             // Xử lý URL cho MediaFile
-            if (dto.MediaFile != null)
+            if (mediaFiles!= null)
             {
                 var req = _httpContextAccessor.HttpContext?.Request;
                 if (req != null)
                 {
-                    var baseUrl = $"{req.Scheme}://{req.Host}";
-                    dto.MediaFile.FilePath = baseUrl + dto.MediaFile.FilePath;
-                    dto.MediaFile.ThumbnailPath = dto.MediaFile.ThumbnailPath != null
-                        ? baseUrl + dto.MediaFile.ThumbnailPath
-                        : null;
+                    foreach (var media in mediaFiles)
+                    {
+                        var baseUrl = $"{req.Scheme}://{req.Host}";
+                        mediaFileModels.Add(new MediaFileModel
+                        {
+                            FileId = media.FileId,
+                            FileName = media.FileName,
+                            OriginalFileName = media.OriginalFileName,
+                            ContentType = media.ContentType,
+                            FilePath = baseUrl + media.FilePath,
+                            ThumbnailPath = media.ThumbnailPath = media.ThumbnailPath != null
+                                            ? baseUrl + media.ThumbnailPath
+                                            : null,
+                            FileSize = media.FileSize
+                        });
+                    }
                 }
             }
+            dto.MediaFiles = mediaFileModels;
 
             // Xử lý URL cho Avatar của ReplyTo
             if (dto.ReplyTo?.Sender?.AvatarUrl != null)
@@ -332,20 +348,6 @@ namespace ChatApp.WebAPI.Controllers
             }
 
             return dto;
-        }
-
-        // Giữ lại method cũ để backward compatibility (nếu cần)
-        private async Task<MessageDto> GetMessageWithDetails(int messageId)
-        {
-            var message = await _context.Messages
-                .Where(m => m.MessageId == messageId)
-                .Include(m => m.Sender)
-                .Include(m => m.MediaFile)
-                .Include(m => m.ReplyToMessage)
-                    .ThenInclude(rm => rm.Sender)
-                .FirstOrDefaultAsync();
-
-            return ConvertToMessageDto(message);
         }
     }
 }

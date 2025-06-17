@@ -13,7 +13,7 @@ namespace ChatApp.Application.DTOs
         public bool IsEdited { get; set; }
         public bool IsDeleted { get; set; }
         public UserDto Sender { get; set; } = new();
-        public MediaFileModel? MediaFile { get; set; }
+        public List<MediaFileModel>? MediaFiles { get; set; }
         public MessageDto? ReplyTo { get; set; }
         public bool IsForwarded { get; set; }
         public bool IsFromCurrentUser { get; set; }

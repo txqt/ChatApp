@@ -14,7 +14,7 @@ namespace ChatApp.Application.DTOs
         public string? Content { get; set; }
         public MessageType MessageType { get; set; } = MessageType.Text;
         public int? ReplyToMessageId { get; set; }
-        public IFormFile? File { get; set; }
+        public List<IFormFile>? Files { get; set; }
     }
 
 }

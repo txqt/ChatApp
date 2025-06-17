@@ -405,9 +405,9 @@ namespace ChatApp.Infrastructure.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ChatId = table.Column<int>(type: "integer", nullable: false),
                     SenderId = table.Column<string>(type: "text", nullable: false),
-                    Content = table.Column<string>(type: "character varying(4000)", maxLength: 4000, nullable: false),
+                    Content = table.Column<string>(type: "character varying(4000)", maxLength: 4000, nullable: true),
                     MessageType = table.Column<int>(type: "integer", nullable: false),
-                    MediaFileId = table.Column<int>(type: "integer", nullable: true),
+                    MediaFileIdsJson = table.Column<string>(type: "text", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
@@ -417,7 +417,8 @@ namespace ChatApp.Infrastructure.Migrations
                     ReplyToMessageId = table.Column<int>(type: "integer", nullable: true),
                     ThreadRootMessageId = table.Column<int>(type: "integer", nullable: true),
                     ForwardedFromChatId = table.Column<int>(type: "integer", nullable: true),
-                    ForwardedFromMessageId = table.Column<int>(type: "integer", nullable: true)
+                    ForwardedFromMessageId = table.Column<int>(type: "integer", nullable: true),
+                    MediaFileFileId = table.Column<int>(type: "integer", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -429,11 +430,10 @@ namespace ChatApp.Infrastructure.Migrations
                         principalColumn: "ChatId",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_Messages_MediaFiles_MediaFileId",
-                        column: x => x.MediaFileId,
+                        name: "FK_Messages_MediaFiles_MediaFileFileId",
+                        column: x => x.MediaFileFileId,
                         principalTable: "MediaFiles",
-                        principalColumn: "FileId",
-                        onDelete: ReferentialAction.SetNull);
+                        principalColumn: "FileId");
                     table.ForeignKey(
                         name: "FK_Messages_Messages_ReplyToMessageId",
                         column: x => x.ReplyToMessageId,
@@ -583,9 +583,9 @@ namespace ChatApp.Infrastructure.Migrations
                 column: "DeletedBy");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Messages_MediaFileId",
+                name: "IX_Messages_MediaFileFileId",
                 table: "Messages",
-                column: "MediaFileId");
+                column: "MediaFileFileId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Messages_ReplyToMessageId",

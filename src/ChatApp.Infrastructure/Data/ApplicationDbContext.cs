@@ -203,11 +203,6 @@ namespace ChatApp.Infrastructure.Data
                     .HasForeignKey(e => e.SenderId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                entity.HasOne(e => e.MediaFile)
-                    .WithMany(f => f.Messages)
-                    .HasForeignKey(e => e.MediaFileId)
-                    .OnDelete(DeleteBehavior.SetNull);
-
                 entity.HasOne(e => e.ReplyToMessage)
                     .WithMany(m => m.Replies)
                     .HasForeignKey(e => e.ReplyToMessageId)

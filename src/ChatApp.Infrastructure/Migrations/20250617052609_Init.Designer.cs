@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ChatApp.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250611130944_Init")]
+    [Migration("20250617052609_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -473,7 +473,6 @@ namespace ChatApp.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("Content")
-                        .IsRequired()
                         .HasMaxLength(4000)
                         .HasColumnType("character varying(4000)");
 
@@ -498,8 +497,11 @@ namespace ChatApp.Infrastructure.Migrations
                     b.Property<bool>("IsEdited")
                         .HasColumnType("boolean");
 
-                    b.Property<int?>("MediaFileId")
+                    b.Property<int?>("MediaFileFileId")
                         .HasColumnType("integer");
+
+                    b.Property<string>("MediaFileIdsJson")
+                        .HasColumnType("text");
 
                     b.Property<int>("MessageType")
                         .HasColumnType("integer");
@@ -525,7 +527,7 @@ namespace ChatApp.Infrastructure.Migrations
 
                     b.HasIndex("DeletedBy");
 
-                    b.HasIndex("MediaFileId");
+                    b.HasIndex("MediaFileFileId");
 
                     b.HasIndex("ReplyToMessageId");
 
@@ -843,10 +845,9 @@ namespace ChatApp.Infrastructure.Migrations
                         .HasForeignKey("DeletedBy")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("ChatApp.Domain.Entities.MediaFile", "MediaFile")
+                    b.HasOne("ChatApp.Domain.Entities.MediaFile", null)
                         .WithMany("Messages")
-                        .HasForeignKey("MediaFileId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .HasForeignKey("MediaFileFileId");
 
                     b.HasOne("ChatApp.Domain.Entities.Message", "ReplyToMessage")
                         .WithMany("Replies")
@@ -867,8 +868,6 @@ namespace ChatApp.Infrastructure.Migrations
                     b.Navigation("Chat");
 
                     b.Navigation("DeletedByUser");
-
-                    b.Navigation("MediaFile");
 
                     b.Navigation("ReplyToMessage");
 

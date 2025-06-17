@@ -1,6 +1,7 @@
 ﻿using ChatApp.Application.Interfaces;
 using ChatApp.Domain.Entities;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.Processing;
@@ -13,7 +14,9 @@ namespace ChatApp.WebAPI.Services
         /// Lưu file vào uploads/{category}/{yyyy-MM-dd}, sinh thumbnail nếu là ảnh,
         /// tạo record MediaFile, trả về MediaFileId.
         /// </summary>
-        Task<int> SaveMediaFileAsync(IFormFile file, string userId);
+        Task<MediaFile> SaveMediaFileAsync(IFormFile file, string userId);
+        Task<MediaFile> GetMediaFileAsync(int mediaFileId, string userId);
+        Task<List<MediaFile>> GetMediaFilesAsync(List<int> mediaFileIds, string userId);
     }
     public class MediaService : IMediaService
     {
@@ -34,7 +37,7 @@ namespace ChatApp.WebAPI.Services
             _context = context;
         }
 
-        public async Task<int> SaveMediaFileAsync(IFormFile file, string userId)
+        public async Task<MediaFile> SaveMediaFileAsync(IFormFile file, string userId)
         {
             // 1. Validate
             if (file.Length == 0 || file.Length > _maxSize)
@@ -103,7 +106,7 @@ namespace ChatApp.WebAPI.Services
             _context.MediaFiles.Add(media);
             await _context.SaveChangesAsync();
 
-            return media.FileId;
+            return media;
         }
 
 
@@ -144,6 +147,44 @@ namespace ChatApp.WebAPI.Services
                 ".gif" => new SixLabors.ImageSharp.Formats.Gif.GifEncoder(),
                 _ => new SixLabors.ImageSharp.Formats.Png.PngEncoder()
             };
+        }
+
+        public async Task<MediaFile> GetMediaFileAsync(int mediaFileId, string userId)
+        {
+            return await _context.MediaFiles
+                .Where(m => m.FileId == mediaFileId && !m.IsDeleted)
+                .Select(m => new MediaFile
+                {
+                    FileId = m.FileId,
+                    FileName = m.FileName,
+                    OriginalFileName = m.OriginalFileName,
+                    ContentType = m.ContentType,
+                    FilePath = m.FilePath,
+                    ThumbnailPath = m.ThumbnailPath,
+                    FileSize = m.FileSize,
+                    UploadedBy = userId,
+                    UploadedAt = m.UploadedAt
+                })
+                .FirstOrDefaultAsync();
+        }
+
+        public async Task<List<MediaFile>> GetMediaFilesAsync(List<int> mediaFileIds, string userId)
+        {
+            return await _context.MediaFiles
+                .Where(m => mediaFileIds.Contains(m.FileId) && !m.IsDeleted)
+                .Select(m => new MediaFile
+                {
+                    FileId = m.FileId,
+                    FileName = m.FileName,
+                    OriginalFileName = m.OriginalFileName,
+                    ContentType = m.ContentType,
+                    FilePath = m.FilePath,
+                    ThumbnailPath = m.ThumbnailPath,
+                    FileSize = m.FileSize,
+                    UploadedBy = userId,
+                    UploadedAt = m.UploadedAt
+                })
+                .ToListAsync();
         }
     }
 }
