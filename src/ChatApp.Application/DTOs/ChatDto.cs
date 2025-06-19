@@ -13,6 +13,7 @@ namespace ChatApp.Application.DTOs
         public string? ChatName { get; set; }
         public ChatType ChatType { get; set; }
         public string? AvatarUrl { get; set; }
+        public string? Description { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         public MessageDto? LastMessage { get; set; }
@@ -20,5 +21,9 @@ namespace ChatApp.Application.DTOs
         public int UnreadCount { get; set; }
         public DateTime? LastReadAt { get; set; }
         public bool IsMuted { get; set; }
+        public bool AllowMembersToAddOthers { get; set; } = true;
+        public bool AllowMembersToEditInfo { get; set; } = false;
+        public int MaxMembers { get; set; } = 1000;
+        public ChatPermissions Permissions { get; set; }
     }
 }

@@ -1,0 +1,533 @@
+﻿@using ChatApp.Application.DTOs
+@using ChatApp.Domain.Enum
+@using MudBlazor
+@inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudContainer Style="max-width: 600px;">
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+
+                @* Tab thông tin cơ bản - luôn hiển thị *@
+                <MudTabPanel Text="@(Chat.ChatType == ChatType.Group ? "Thông tin nhóm" : "Thông tin chat")">
+                    <MudStack Spacing="4">
+
+                        @* Avatar section *@
+                        <MudPaper Class="pa-4" Elevation="1">
+                            <MudStack AlignItems="AlignItems.Center" Spacing="3">
+                                <MudAvatar Size="Size.Large" Style="width: 100px; height: 100px;">
+                                    @if (!string.IsNullOrEmpty(Chat.AvatarUrl))
+                                    {
+                                        <MudImage Src="@Chat.AvatarUrl" Alt="Chat Avatar" />
+                                    }
+                                    else
+                                    {
+                                        <MudIcon Icon="@(Chat.ChatType == ChatType.Group ? Icons.Material.Filled.Group : Icons.Material.Filled.Person)" />
+                                    }
+                                </MudAvatar>
+
+                                @if (HasPermission(ChatPermissions.EditGroupInfo))
+                                {
+                                    <MudButton StartIcon="@Icons.Material.Filled.PhotoCamera"
+                                               Variant="Variant.Outlined"
+                                               Size="Size.Small"
+                                               OnClick="ChangeAvatar">
+                                        Đổi ảnh đại diện
+                                    </MudButton>
+                                }
+                            </MudStack>
+                        </MudPaper>
+
+                        @* Chat name *@
+                        <MudTextField @bind-Value="editChatName"
+                                      Label="@(Chat.ChatType == ChatType.Group ? "Tên nhóm" : "Tên chat")"
+                                      Variant="Variant.Outlined"
+                                      ReadOnly="@(!HasPermission(ChatPermissions.EditGroupInfo))"
+                                      Adornment="@(HasPermission(ChatPermissions.EditGroupInfo) ? Adornment.End : Adornment.None)"
+                                      AdornmentIcon="Icons.Material.Filled.Edit" />
+
+                        @* Description - chỉ hiển thị với group *@
+                        @if (Chat.ChatType == ChatType.Group)
+                        {
+                            <MudTextField @bind-Value="editDescription"
+                                          Label="Mô tả nhóm"
+                                          Variant="Variant.Outlined"
+                                          Lines="3"
+                                          ReadOnly="@(!HasPermission(ChatPermissions.EditGroupInfo))"
+                                          Adornment="@(HasPermission(ChatPermissions.EditGroupInfo) ? Adornment.End : Adornment.None)"
+                                          AdornmentIcon="Icons.Material.Filled.Edit" />
+                        }
+
+                        @* Thông tin tạo *@
+                        <MudPaper Class="pa-3" Elevation="0" Style="background-color: var(--mud-palette-background-grey);">
+                            <MudText Typo="Typo.caption">Tạo bởi: @creatorName</MudText>
+                            <MudText Typo="Typo.caption">Ngày tạo: @Chat.CreatedAt.ToString("dd/MM/yyyy HH:mm")</MudText>
+                        </MudPaper>
+
+                        @* Nút lưu thay đổi *@
+                        @if (HasPermission(ChatPermissions.EditGroupInfo) && HasChanges())
+                        {
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       StartIcon="Icons.Material.Filled.Save"
+                                       OnClick="SaveBasicInfo"
+                                       FullWidth="true">
+                                Lưu thay đổi
+                            </MudButton>
+                        }
+                    </MudStack>
+                </MudTabPanel>
+
+                @* Tab thành viên - chỉ hiển thị với group *@
+                @if (Chat.ChatType == ChatType.Group)
+                {
+                    var text = "Thành viên " + Chat.Members.Count.ToString();
+                    <MudTabPanel Text="@text">
+                        <MudStack Spacing="3">
+
+                            @* Nút thêm thành viên *@
+                            @if (HasPermission(ChatPermissions.AddMembers))
+                            {
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           StartIcon="Icons.Material.Filled.PersonAdd"
+                                           OnClick="ShowAddMembersDialog"
+                                           FullWidth="true">
+                                    Thêm thành viên
+                                </MudButton>
+                            }
+
+                            @* Danh sách thành viên *@
+                            <MudList Clickable="false" T="string">
+                                @foreach (var member in Chat.Members.OrderByDescending(m => (int)GetMemberRole(m.Id)))
+                                {
+                                    <MudListItem>
+                                        <div style="display: flex; align-items: center; width: 100%;">
+                                            <MudAvatar Size="Size.Medium" Class="mr-3">
+                                                @if (!string.IsNullOrEmpty(member.AvatarUrl))
+                                                {
+                                                    <MudImage Src="@member.AvatarUrl" Alt="@member.DisplayName" />
+                                                }
+                                                else
+                                                {
+                                                    <MudIcon Icon="Icons.Material.Filled.Person" />
+                                                }
+                                            </MudAvatar>
+
+                                            <div style="flex-grow: 1;">
+                                                <MudText Typo="Typo.subtitle2">@member.DisplayName</MudText>
+                                                <MudChip Size="Size.Small"
+                                                         Color="@GetRoleColor(GetMemberRole(member.Id))"
+                                                         Variant="Variant.Text">
+                                                    @GetRoleDisplayName(GetMemberRole(member.Id))
+                                                </MudChip>
+                                            </div>
+
+                                            @* Menu hành động cho thành viên *@
+                                            @if (CanManageMember(member.Id))
+                                            {
+                                                <MudMenu Icon="Icons.Material.Filled.MoreVert" Size="Size.Small">
+                                                    @if (HasPermission(ChatPermissions.ManageRoles) && GetMemberRole(member.Id) != ChatMemberRole.Owner)
+                                                    {
+                                                        <MudMenuItem OnClick="@(() => ShowChangeRoleDialog(member.Id))">
+                                                            <div style="display: flex; align-items: center;">
+                                                                <MudIcon Icon="Icons.Material.Filled.Security" Class="mr-2" Size="Size.Small" />
+                                                                Đổi vai trò
+                                                            </div>
+                                                        </MudMenuItem>
+                                                    }
+
+                                                    @if (HasPermission(ChatPermissions.MuteMembers))
+                                                    {
+                                                        <MudMenuItem OnClick="@(() => ToggleMuteMember(member.Id))">
+                                                            <div style="display: flex; align-items: center;">
+                                                                <MudIcon Icon="Icons.Material.Filled.VolumeOff" Class="mr-2" Size="Size.Small" />
+                                                                @(IsMemberMuted(member.Id) ? "Bỏ tắt tiếng" : "Tắt tiếng")
+                                                            </div>
+                                                        </MudMenuItem>
+                                                    }
+
+                                                    @if (HasPermission(ChatPermissions.RemoveMembers) && GetMemberRole(member.Id) != ChatMemberRole.Owner)
+                                                    {
+                                                        <MudMenuItem OnClick="@(() => RemoveMember(member.Id))">
+                                                            <div style="display: flex; align-items: center;">
+                                                                <MudIcon Icon="Icons.Material.Filled.PersonRemove" Class="mr-2" Size="Size.Small" Color="Color.Error" />
+                                                                <MudText Color="Color.Error">Kick khỏi nhóm</MudText>
+                                                            </div>
+                                                        </MudMenuItem>
+                                                    }
+                                                </MudMenu>
+                                            }
+                                        </div>
+                                    </MudListItem>
+                                    <MudDivider />
+                                }
+                            </MudList>
+                        </MudStack>
+                    </MudTabPanel>
+                }
+
+                @* Tab quyền hạn - chỉ hiển thị nếu có quyền quản lý permissions *@
+                @if (Chat.ChatType == ChatType.Group && HasPermission(ChatPermissions.ManagePermissions))
+                {
+                    <MudTabPanel Text="Phân quyền">
+                        <MudStack Spacing="4">
+                            <MudText Typo="Typo.h6">Cài đặt quyền theo vai trò</MudText>
+                            
+                            <MudExpansionPanels MultiExpansion="true">
+                                @foreach (ChatMemberRole role in availableRoles)
+                                {
+                                    <MudExpansionPanel IsInitiallyExpanded="false">
+                                        <TitleContent>
+                                            <div style="display: flex; align-items: center;">
+                                                <MudIcon Icon="@GetRoleIcon(role)" Class="mr-3" />
+                                                <MudText Typo="Typo.subtitle1">@GetRoleDisplayName(role)</MudText>
+                                            </div>
+                                        </TitleContent>
+                                        <ChildContent>
+                                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+                                                @{
+                                                    var rolePermissions = GetAvailablePermissions(role);
+                                                }
+                                                @foreach (var permission in rolePermissions)
+                                                {
+                                                    var permissionKey = permission.Key;
+
+                                                    <MudCheckBox T="bool"
+                                                                 Value="@GetRolePermissionValue(role, permissionKey)"
+                                                                 Label="@permission.Value"
+                                                                 ValueChanged="@((bool value) => UpdateRolePermission(role, permissionKey, value))" />
+
+                                                }
+                                            </div>
+                                        </ChildContent>
+                                    </MudExpansionPanel>
+                                }
+                            </MudExpansionPanels>
+
+                            <MudButton Variant="Variant.Filled" 
+                                     Color="Color.Primary" 
+                                     StartIcon="Icons.Material.Filled.Save"
+                                     OnClick="SavePermissions"
+                                     FullWidth="true">
+                                Lưu cài đặt quyền
+                            </MudButton>
+                        </MudStack>
+                    </MudTabPanel>
+
+                }
+
+                @* Tab cài đặt nâng cao *@
+                <MudTabPanel Text="Cài đặt">
+                    <MudStack Spacing="4">
+
+                        @* Cài đặt thông báo *@
+                        <MudPaper Class="pa-4" Elevation="1">
+                            <MudText Typo="Typo.h6" Class="mb-3">Thông báo</MudText>
+                            <MudSwitch T="bool" @bind-Checked="isMuted"
+                                       Label="Tắt thông báo từ chat này"
+                                       Color="Color.Primary" />
+                        </MudPaper>
+
+                        @* Cài đặt nhóm - chỉ hiển thị với group và có quyền *@
+                        @if (Chat.ChatType == ChatType.Group && HasPermission(ChatPermissions.EditGroupInfo))
+                        {
+                            <MudPaper Class="pa-4" Elevation="1">
+                                <MudText Typo="Typo.h6" Class="mb-3">Cài đặt nhóm</MudText>
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" @bind-Checked="allowMembersToAddOthers"
+                                               Label="Cho phép thành viên thêm người khác"
+                                               Color="Color.Primary" />
+                                    <MudSwitch T="bool" @bind-Checked="allowMembersToEditInfo"
+                                               Label="Cho phép thành viên sửa thông tin nhóm"
+                                               Color="Color.Primary" />
+                                    <MudNumericField @bind-Value="maxMembers"
+                                                     Label="Số thành viên tối đa"
+                                                     Variant="Variant.Outlined"
+                                                     Min="2"
+                                                     Max="10000" />
+                                </MudStack>
+                            </MudPaper>
+                        }
+
+                        @* Export chat *@
+                        @if (HasPermission(ChatPermissions.ExportChat))
+                        {
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Info"
+                                       StartIcon="Icons.Material.Filled.Download"
+                                       OnClick="ExportChat"
+                                       FullWidth="true">
+                                Xuất dữ liệu chat
+                            </MudButton>
+                        }
+
+                        @* Rời nhóm *@
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Warning"
+                                   StartIcon="Icons.Material.Filled.ExitToApp"
+                                   OnClick="LeaveChat"
+                                   FullWidth="true">
+                            @(Chat.ChatType == ChatType.Group ? "Rời nhóm" : "Xóa cuộc trò chuyện")
+                        </MudButton>
+
+                        @* Xóa nhóm - chỉ owner *@
+                        @if (Chat.ChatType == ChatType.Group && HasPermission(ChatPermissions.DeleteGroup))
+                        {
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Error"
+                                       StartIcon="Icons.Material.Filled.Delete"
+                                       OnClick="DeleteGroup"
+                                       FullWidth="true">
+                                Xóa nhóm vĩnh viễn
+                            </MudButton>
+                        }
+                    </MudStack>
+                </MudTabPanel>
+            </MudTabs>
+        </MudContainer>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public ChatDto Chat { get; set; } = null!;
+    [Parameter] public ChatPermissions UserPermissions { get; set; }
+    [Parameter] public string CurrentUserId { get; set; } = string.Empty;
+
+    // Form fields
+    private string editChatName = string.Empty;
+    private string editDescription = string.Empty;
+    private string creatorName = string.Empty;
+    private bool isMuted;
+    private bool allowMembersToAddOthers;
+    private bool allowMembersToEditInfo;
+    private int maxMembers;
+
+    // Permission management
+    private Dictionary<ChatMemberRole, ChatPermissions> RolePermissions = new();
+
+    protected override void OnInitialized()
+    {
+        // Initialize form fields
+        editChatName = Chat.ChatName ?? "";
+        editDescription = ""; // Sẽ load từ API
+        creatorName = ""; // Sẽ load từ API
+        isMuted = Chat.IsMuted;
+
+        // Load initial data
+        LoadInitialData();
+    }
+
+    private readonly ChatMemberRole[] availableRoles = {
+        ChatMemberRole.Member,
+        ChatMemberRole.Moderator,
+        ChatMemberRole.Admin,
+        ChatMemberRole.Owner
+    };
+
+    private bool HasPermission(ChatPermissions permission)
+    {
+        return Chat.Permissions.HasFlag(permission);
+    }
+
+    private bool HasChanges()
+    {
+        return editChatName != (Chat.ChatName ?? "") ||
+               (Chat.ChatType == ChatType.Group && editDescription != ""); // So sánh với dữ liệu gốc
+    }
+
+    private ChatMemberRole GetMemberRole(string userId)
+    {
+        // Sẽ call API để lấy role của member
+        return ChatMemberRole.Member; // Placeholder
+    }
+
+    private bool CanManageMember(string memberId)
+    {
+        if (memberId == CurrentUserId) return false; // Không thể tự quản lý mình
+
+        var memberRole = GetMemberRole(memberId);
+        return HasPermission(ChatPermissions.ManageRoles) ||
+               HasPermission(ChatPermissions.MuteMembers) ||
+               HasPermission(ChatPermissions.RemoveMembers);
+    }
+
+    private bool IsMemberMuted(string userId)
+    {
+        // Call API để check member có bị mute không
+        return false; // Placeholder
+    }
+
+    private Color GetRoleColor(ChatMemberRole role)
+    {
+        return role switch
+        {
+            ChatMemberRole.Owner => Color.Error,
+            ChatMemberRole.Admin => Color.Warning,
+            ChatMemberRole.Moderator => Color.Info,
+            _ => Color.Default
+        };
+    }
+
+    private string GetRoleDisplayName(ChatMemberRole role)
+    {
+        return role switch
+        {
+            ChatMemberRole.Owner => "Chủ nhóm",
+            ChatMemberRole.Admin => "Quản trị viên",
+            ChatMemberRole.Moderator => "Điều hành viên",
+            _ => "Thành viên"
+        };
+    }
+
+    private string GetRoleIcon(ChatMemberRole role)
+    {
+        return role switch
+        {
+            ChatMemberRole.Owner => Icons.Material.Filled.Crop,
+            ChatMemberRole.Admin => Icons.Material.Filled.Shield,
+            ChatMemberRole.Moderator => Icons.Material.Filled.Security,
+            _ => Icons.Material.Filled.Person
+        };
+    }
+
+    private Dictionary<ChatPermissions, string> GetAvailablePermissions(ChatMemberRole role)
+    {
+        var permissions = new Dictionary<ChatPermissions, string>
+        {
+            { ChatPermissions.ViewMessages, "Xem tin nhắn" },
+            { ChatPermissions.SendMessages, "Gửi tin nhắn" },
+            { ChatPermissions.SendMedia, "Gửi file/hình ảnh" },
+            { ChatPermissions.SendVoice, "Gửi tin nhắn thoại" },
+            { ChatPermissions.React, "Thả react" },
+            { ChatPermissions.ForwardMessages, "Chuyển tiếp tin nhắn" },
+            { ChatPermissions.DeleteOwnMessages, "Xóa tin nhắn của mình" },
+            { ChatPermissions.EditOwnMessages, "Sửa tin nhắn của mình" },
+            { ChatPermissions.ViewMembers, "Xem danh sách thành viên" },
+            { ChatPermissions.ViewMessageHistory, "Xem lịch sử tin nhắn" }
+        };
+
+        // Thêm quyền cao hơn cho Moderator và Admin
+        if (role >= ChatMemberRole.Moderator)
+        {
+            permissions.Add(ChatPermissions.DeleteAnyMessage, "Xóa tin nhắn của người khác");
+            permissions.Add(ChatPermissions.PinMessages, "Ghim tin nhắn");
+            permissions.Add(ChatPermissions.MuteMembers, "Tắt tiếng thành viên");
+            permissions.Add(ChatPermissions.ChangeNicknames, "Đổi nickname");
+        }
+
+        if (role >= ChatMemberRole.Admin)
+        {
+            permissions.Add(ChatPermissions.AddMembers, "Thêm thành viên");
+            permissions.Add(ChatPermissions.RemoveMembers, "Kick thành viên");
+            permissions.Add(ChatPermissions.EditGroupInfo, "Sửa thông tin nhóm");
+            permissions.Add(ChatPermissions.ManageRoles, "Quản lý vai trò");
+            permissions.Add(ChatPermissions.EditAnyMessage, "Sửa tin nhắn của người khác");
+            permissions.Add(ChatPermissions.ExportChat, "Xuất dữ liệu chat");
+        }
+
+        return permissions;
+    }
+
+    private void UpdateRolePermission(ChatMemberRole role, ChatPermissions permission, bool hasPermission)
+    {
+        if (!RolePermissions.ContainsKey(role))
+            RolePermissions[role] = ChatPermissions.None;
+
+        if (hasPermission)
+            RolePermissions[role] |= permission;
+        else
+            RolePermissions[role] &= ~permission;
+    }
+
+    private bool GetRolePermissionValue(ChatMemberRole role, ChatPermissions permission)
+    {
+        return RolePermissions.ContainsKey(role) && RolePermissions[role].HasFlag(permission);
+    }
+
+    // API Calls - Các method này sẽ call tới API backend
+    private async Task LoadInitialData()
+    {
+        // TODO: Call API để load thông tin chi tiết của chat
+        // - Thông tin creator
+        // - Description của group
+        // - Settings hiện tại
+        // - Role permissions hiện tại
+    }
+
+    private async Task SaveBasicInfo()
+    {
+        // TODO: Call API để update thông tin cơ bản
+        // POST /api/chats/{chatId}/basic-info
+        Snackbar.Add("Đã lưu thông tin cơ bản", Severity.Success);
+    }
+
+    private async Task ChangeAvatar()
+    {
+        // TODO: Show file picker và upload avatar
+        // POST /api/chats/{chatId}/avatar
+    }
+
+    private async Task ShowAddMembersDialog(MouseEventArgs e)
+    {
+        // TODO: Show dialog để chọn users để thêm vào group
+        // GET /api/users/search để tìm users
+        // POST /api/chats/{chatId}/members để thêm members
+    }
+
+    private async Task ShowChangeRoleDialog(string userId)
+    {
+        // TODO: Show dialog để đổi role của member
+        // PUT /api/chats/{chatId}/members/{userId}/role
+    }
+
+    private async Task ToggleMuteMember(string userId)
+    {
+        // TODO: Mute/unmute member
+        // PUT /api/chats/{chatId}/members/{userId}/mute
+        Snackbar.Add("Đã thay đổi trạng thái tắt tiếng", Severity.Success);
+    }
+
+    private async Task RemoveMember(string userId)
+    {
+        // TODO: Show confirmation dialog và remove member
+        // DELETE /api/chats/{chatId}/members/{userId}
+        Snackbar.Add("Đã kick thành viên khỏi nhóm", Severity.Warning);
+    }
+
+    private async Task SavePermissions()
+    {
+        // TODO: Save role permissions
+        // PUT /api/chats/{chatId}/permissions
+        Snackbar.Add("Đã lưu cài đặt phân quyền", Severity.Success);
+    }
+
+    private async Task ExportChat()
+    {
+        // TODO: Export chat data
+        // GET /api/chats/{chatId}/export
+        await JSRuntime.InvokeVoidAsync("downloadFile", "chat-export.json", "data");
+    }
+
+    private async Task LeaveChat()
+    {
+        // TODO: Show confirmation và leave chat
+        // POST /api/chats/{chatId}/leave
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private async Task DeleteGroup()
+    {
+        // TODO: Show confirmation và delete group
+        // DELETE /api/chats/{chatId}
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

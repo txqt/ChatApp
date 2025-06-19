@@ -13,7 +13,7 @@ namespace ChatApp.BlazorApp.Services
         Task<MessageDto> SendMessageAsync(MultipartFormDataContent content);
         Task<MessageDto> SendMessageAsync(SendMessageRequest request);
         Task<ChatDto> CreateDirectChatAsync(string userId);
-        Task<ChatDto> CreateGroupChatAsync(CreateGroupChatRequest request);
+        Task CreateGroupChatAsync(CreateGroupChatRequest request);
         Task<MediaFileModel> UploadFileAsync(Stream fileStream, string fileName, string contentType);
         Task<bool> EditMessageAsync(int messageId, string content);
         Task<bool> DeleteMessageAsync(int messageId, bool deleteForEveryone = false);
@@ -111,13 +111,10 @@ namespace ChatApp.BlazorApp.Services
             return new ChatDto { ChatId = result?.chatId ?? 0 };
         }
 
-        public async Task<ChatDto> CreateGroupChatAsync(CreateGroupChatRequest request)
+        public async Task CreateGroupChatAsync(CreateGroupChatRequest request)
         {
             var response = await _httpClient.PostAsJsonAsync("/api/chat/group", request);
             response.EnsureSuccessStatusCode();
-
-            var result = await response.Content.ReadFromJsonAsync<dynamic>(_jsonOptions);
-            return new ChatDto { ChatId = result?.chatId ?? 0 };
         }
 
         public async Task<MediaFileModel> UploadFileAsync(Stream fileStream, string fileName, string contentType)

@@ -4,6 +4,7 @@ using ChatApp.Domain.Enum;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -124,7 +125,7 @@ namespace ChatApp.Infrastructure.Data
             {
                 entity.Property(e => e.PermissionMask).IsRequired();
 
-                entity.HasKey(e => e.ChatId);
+                entity.HasKey(crp => new { crp.ChatId, crp.Role });
                 entity.HasOne(e => e.Chat)
                     .WithMany(r => r.RolePermissions)
                     .HasForeignKey(e => e.ChatId);
@@ -319,5 +320,8 @@ namespace ChatApp.Infrastructure.Data
 
             return await base.SaveChangesAsync(cancellationToken);
         }
+
+        public Task<IDbContextTransaction> BeginTransactionAsync()
+            => Database.BeginTransactionAsync();
     }
 }

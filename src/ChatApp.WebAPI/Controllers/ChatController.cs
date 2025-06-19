@@ -26,54 +26,66 @@ namespace ChatApp.WebAPI.Controllers
         [HttpGet]
         public async Task<IActionResult> GetUserChats()
         {
-            var chatsData = await _context.ChatMembers
-                        .Where(cm => cm.UserId == CurrentUserId && cm.IsActive)
-                        .Include(cm => cm.Chat)
-                            .ThenInclude(c => c.LastMessage)
-                                .ThenInclude(lm => lm.Sender)
-                        .Include(cm => cm.Chat)
-                            .ThenInclude(c => c.Members.Where(m => m.IsActive))
-                                .ThenInclude(m => m.User)
-                        .Select(cm => new ChatDto
+            // Step 1: Project basic chat info first (no async work)
+            var chatEntities = await _context.ChatMembers
+                .Where(cm => cm.UserId == CurrentUserId && cm.IsActive)
+                .Include(cm => cm.Chat)
+                    .ThenInclude(c => c.LastMessage)
+                        .ThenInclude(lm => lm.Sender)
+                .Include(cm => cm.Chat)
+                    .ThenInclude(c => c.Members.Where(m => m.IsActive))
+                        .ThenInclude(m => m.User)
+                .ToListAsync();
+
+            // Step 2: Map with async data (e.g. permissions)
+            var chatsData = new List<ChatDto>();
+            foreach (var cm in chatEntities)
+            {
+                var chat = cm.Chat;
+
+                var chatDto = new ChatDto
+                {
+                    ChatId = chat.ChatId,
+                    ChatName = chat.ChatName,
+                    ChatType = chat.ChatType,
+                    AvatarUrl = chat.AvatarUrl,
+                    CreatedAt = chat.CreatedAt,
+                    UpdatedAt = chat.UpdatedAt,
+                    Permissions = await _chatPermissionService.GetUserPermissions(CurrentUser, chat.ChatId),
+                    LastMessage = chat.LastMessage == null ? null : new MessageDto
+                    {
+                        MessageId = chat.LastMessage.MessageId,
+                        Content = chat.LastMessage.Content,
+                        MessageType = chat.LastMessage.MessageType,
+                        CreatedAt = chat.LastMessage.CreatedAt,
+                        Sender = new UserDto
                         {
-                            ChatId = cm.Chat.ChatId,
-                            ChatName = cm.Chat.ChatName,
-                            ChatType = cm.Chat.ChatType,
-                            AvatarUrl = cm.Chat.AvatarUrl,
-                            CreatedAt = cm.Chat.CreatedAt,
-                            UpdatedAt = cm.Chat.UpdatedAt,
-                            LastMessage = cm.Chat.LastMessage == null ? null : new MessageDto
-                            {
-                                MessageId = cm.Chat.LastMessage.MessageId,
-                                Content = cm.Chat.LastMessage.Content,
-                                MessageType = cm.Chat.LastMessage.MessageType,
-                                CreatedAt = cm.Chat.LastMessage.CreatedAt,
-                                Sender = new UserDto
-                                {
-                                    Id = cm.Chat.LastMessage.Sender.Id,
-                                    DisplayName = cm.Chat.LastMessage.Sender.DisplayName,
-                                    AvatarUrl = cm.Chat.LastMessage.Sender.AvatarUrl,
-                                    IsOnline = cm.Chat.LastMessage.Sender.IsOnline
-                                }
-                            },
-                            UnreadCount = _context.Messages
-                                .Where(msg => msg.ChatId == cm.Chat.ChatId &&
-                                               msg.CreatedAt > (cm.LastReadAt ?? DateTime.MinValue) &&
-                                               msg.SenderId != CurrentUserId)
-                                .Count(),
-                            LastReadAt = cm.LastReadAt,
-                            IsMuted = cm.IsMuted,
-                            Members = cm.Chat.Members
-                                .Select(m => new UserDto
-                                {
-                                    Id = m.User.Id,
-                                    DisplayName = m.User.DisplayName,
-                                    AvatarUrl = m.User.AvatarUrl,
-                                    IsOnline = m.User.IsOnline
-                                })
-                                .ToList()
+                            Id = chat.LastMessage.Sender.Id,
+                            DisplayName = chat.LastMessage.Sender.DisplayName,
+                            AvatarUrl = chat.LastMessage.Sender.AvatarUrl,
+                            IsOnline = chat.LastMessage.Sender.IsOnline
+                        }
+                    },
+                    UnreadCount = _context.Messages
+                        .Count(msg => msg.ChatId == chat.ChatId &&
+                                      msg.CreatedAt > (cm.LastReadAt ?? DateTime.MinValue) &&
+                                      msg.SenderId != CurrentUserId),
+                    LastReadAt = cm.LastReadAt,
+                    IsMuted = cm.IsMuted,
+                    Members = chat.Members
+                        .Select(m => new UserDto
+                        {
+                            Id = m.User.Id,
+                            DisplayName = m.User.DisplayName,
+                            AvatarUrl = m.User.AvatarUrl,
+                            IsOnline = m.User.IsOnline
                         })
-                        .ToListAsync();
+                        .ToList()
+                };
+
+                chatsData.Add(chatDto);
+            }
+
 
             var chats = chatsData
                 .OrderByDescending(c => c.LastMessage?.CreatedAt ?? c.CreatedAt)
@@ -128,8 +140,11 @@ namespace ChatApp.WebAPI.Controllers
             {
                 ChatId = chat.ChatId,
                 Role = ChatMemberRole.Member,
-                PermissionMask = (long)ChatPermissions.BasicMember // Direct chat has basic permissions
+                PermissionMask = (long)ChatPermissions.BasicMember, // Direct chat has basic permissions
+                UpdatedAt = DateTime.UtcNow,
+                UpdatedBy = CurrentUserId
             };
+            _context.ChatRolePermissions.Add(chatRolePermission);
 
             // Add members
             var members = new[]
@@ -153,47 +168,96 @@ namespace ChatApp.WebAPI.Controllers
 
             var currentUser = await _userService.GetCurrentUserAsync();
 
-            var chat = new Chat
-            {
-                ChatType = ChatType.Group,
-                ChatName = request.ChatName,
-                Description = request.Description,
-                CreatedBy = CurrentUser.Id,
-                AllowMembersToAddOthers = request.AllowMembersToAddOthers,
-                AllowMembersToEditInfo = request.AllowMembersToEditInfo,
-                MaxMembers = request.MaxMembers ?? 1000,
-                IsActive = true
-            };
+            await using var tx = await _context.BeginTransactionAsync();
 
-            _context.Chats.Add(chat);
-            await _context.SaveChangesAsync();
-
-            // Add creator as admin
-            var creatorMember = new ChatMember
+            try
             {
-                ChatId = chat.ChatId,
-                UserId = CurrentUser.Id,
-                Role = ChatMemberRole.Admin
-            };
-            _context.ChatMembers.Add(creatorMember);
+                var chat = new Chat
+                {
+                    ChatType = ChatType.Group,
+                    ChatName = request.ChatName,
+                    Description = request.Description,
+                    CreatedBy = CurrentUser.Id,
+                    AllowMembersToAddOthers = request.AllowMembersToAddOthers,
+                    AllowMembersToEditInfo = request.AllowMembersToEditInfo,
+                    MaxMembers = request.MaxMembers ?? 1000,
+                    IsActive = true
+                };
 
-            // Add other members
-            if (request.MemberIds?.Any() == true)
-            {
-                var members = request.MemberIds.Select(userId => new ChatMember
+                _context.Chats.Add(chat);
+                await _context.SaveChangesAsync();
+
+                // Add creator as admin
+                var creatorMember = new ChatMember
                 {
                     ChatId = chat.ChatId,
-                    UserId = userId,
-                    Role = ChatMemberRole.Member,
-                    AddedBy = CurrentUser.Id
+                    UserId = CurrentUser.Id,
+                    Role = ChatMemberRole.Owner
+                };
+                _context.ChatMembers.Add(creatorMember);
+                await _context.SaveChangesAsync();
+
+                var rolePermissionsMap = new Dictionary<ChatMemberRole, ChatPermissions>
+                {
+                    { ChatMemberRole.Member, ChatPermissions.BasicMember },
+                    { ChatMemberRole.Moderator, ChatPermissions.Moderator },
+                    { ChatMemberRole.Admin, ChatPermissions.Admin },
+                    { ChatMemberRole.Owner, ChatPermissions.Owner }
+                };
+
+                var now = DateTime.UtcNow;
+
+                var rolePermissions = rolePermissionsMap.Select(rp => new ChatRolePermission
+                {
+                    ChatId = chat.ChatId,
+                    Role = rp.Key,
+                    PermissionMask = (long)rp.Value,
+                    UpdatedAt = now,
+                    UpdatedBy = CurrentUserId
                 }).ToList();
 
-                _context.ChatMembers.AddRange(members);
+                _context.ChatRolePermissions.AddRange(rolePermissions);
+                await _context.SaveChangesAsync();
+
+                // Add other members
+                if (request.MemberIds?.Any() == true)
+                {
+                    var members = request.MemberIds.Select(userId => new ChatMember
+                    {
+                        ChatId = chat.ChatId,
+                        UserId = userId,
+                        Role = ChatMemberRole.Member,
+                        AddedBy = CurrentUser.Id
+                    }).ToList();
+
+                    _context.ChatMembers.AddRange(members);
+                }
+
+                await _context.SaveChangesAsync();
+
+                await tx.CommitAsync();
+
+                return Ok(new { chatId = chat.ChatId, message = "Group chat created successfully" });
             }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync();
 
-            await _context.SaveChangesAsync();
-
-            return Ok(new { chatId = chat.ChatId, message = "Group chat created successfully" });
+                _context.AuditLogs.Add(new AuditLog
+                {
+                    UserId = CurrentUserId,
+                    Action = "CreateGroupChat_Failed",
+                    EntityType = "Chat",
+                    EntityId = null,
+                    OldValues = null,
+                    NewValues = JsonSerializer.Serialize(request),
+                    Timestamp = DateTime.UtcNow,
+                    IpAddress = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString(),
+                    UserAgent = _httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString()
+                });
+                await _context.SaveChangesAsync();
+                return StatusCode(500, "An error occurred while creating the group chat.");
+            }
         }
 
         [HttpGet("{chatId}/messages")]

@@ -141,7 +141,7 @@
                                                     }
                                                     @if (chat.IsMuted)
                                                     {
-                                                        <MudIcon Icon="Icons.Material.Filled.VolumeOff"
+                                                        <MudIcon Icon="@Icons.Material.Filled.VolumeOff"
                                                                  Size="Size.Small"
                                                                  Class="ml-1" />
                                                     }
@@ -194,8 +194,8 @@
                                     @(selectedChat.ChatType == ChatType.Direct
                                                                 ? GetDirectChatInitial(selectedChat)
                                                                 : selectedChat.ChatName?.Substring(0, 1))
-                        </MudAvatar>
-                                                }
+                                </MudAvatar>
+                            }
                         </div>
 
                         <div>
@@ -228,6 +228,11 @@
                                     }
                                 }
                             </MudText>
+                            <MudIconButton Icon="@Icons.Material.Filled.Settings"
+                                           Color="Color.Primary"
+                                           Size="Size.Small"
+                                           OnClick="ShowChatSettings">
+                            </MudIconButton>
                         </div>
                     </MudToolBar>
 
@@ -376,14 +381,14 @@
                                           Margin="Margin.Dense"
                                           Class="flex-grow-1 mr-2"
                                           Style="border-radius: 20px;"
-                                          For="@(() => messageInput)" />
+                                          For="@(() => messageInput)" Disabled="@(!selectedChat.Permissions.HasFlag(ChatPermissions.SendMessages))" />
 
                             <MudIconButton Icon="@Icons.Material.Filled.ArrowForwardIos"
                                            Color="Color.Primary"
                                            Variant="Variant.Filled"
                                            Size="Size.Medium"
                                            OnClick="SendMessage"
-                                           Disabled="@(string.IsNullOrWhiteSpace(messageInput) | selectedFiles == null)" />
+                                           Disabled="@(string.IsNullOrWhiteSpace(messageInput) | selectedFiles == null | !selectedChat.Permissions.HasFlag(ChatPermissions.SendMessages))" />
                         </div>
                         @if (previewUrls.Any())
                         {
@@ -502,7 +507,11 @@
 
     private async Task SendMessage()
     {
-        if (selectedChat == null) return;
+        if (selectedChat == null || !selectedChat.Permissions.HasFlag(ChatPermissions.SendMessages))
+        {
+            Snackbar.Add("You do not have permission to send messages in this chat.", Severity.Error);
+            return;
+        }
 
         using var form = new MultipartFormDataContent();
 
@@ -510,12 +519,16 @@
         form.Add(new StringContent(messageInput ?? ""), "Content");
 
         // Thêm tất cả file
-        foreach (var file in selectedFiles)
+        var canSendFiles = selectedChat.Permissions.HasFlag(ChatPermissions.SendMedia);
+        if (canSendFiles)
         {
-            var streamContent = new StreamContent(file.OpenReadStream(10_000_000));
-            streamContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
-            // Tên form field phải trùng với property List<IFormFile> Files
-            form.Add(streamContent, "Files", file.Name);
+            foreach (var file in selectedFiles)
+            {
+                var streamContent = new StreamContent(file.OpenReadStream(10_000_000));
+                streamContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+                // Tên form field phải trùng với property List<IFormFile> Files
+                form.Add(streamContent, "Files", file.Name);
+            }
         }
 
         var msg = await ChatService.SendMessageAsync(form);
@@ -531,11 +544,23 @@
 
     private async Task OpenFileUpload()
     {
+        if (selectedChat == null || !selectedChat.Permissions.HasFlag(ChatPermissions.SendMedia))
+        {
+            Snackbar.Add("You do not have permission to upload files in this chat.", Severity.Error);
+            return;
+        }
+
         await JSRuntime.InvokeVoidAsync("openFileUpload");
     }
 
     private async Task OnFilesSelected(InputFileChangeEventArgs e)
     {
+        if (selectedChat == null || !selectedChat.Permissions.HasFlag(ChatPermissions.SendMedia))
+        {
+            Snackbar.Add("You do not have permission to upload files in this chat.", Severity.Error);
+            return;
+        }
+
         selectedFiles = e.GetMultipleFiles(maximumFileCount: 10).ToList();
 
         // Tạo preview URLs nếu muốn:
@@ -556,6 +581,12 @@
 
     private async void OnTyping(ChangeEventArgs e)
     {
+        if (selectedChat == null || !selectedChat.Permissions.HasFlag(ChatPermissions.SendMessages))
+        {
+            Snackbar.Add("You do not have permission.", Severity.Error);
+            return;
+        }
+
         if (selectedChat != null)
         {
             // Start typing indicator
@@ -581,6 +612,12 @@
 
     private async void OnMessageReceived(MessageDto message)
     {
+        if (selectedChat == null || !selectedChat.Permissions.HasFlag(ChatPermissions.ViewMessages))
+        {
+            Snackbar.Add("You do not have permission.", Severity.Error);
+            return;
+        }
+
         if (selectedChat?.ChatId == message.ChatId)
         {
             message.IsFromCurrentUser = message.Sender.Id == currentUserId;
@@ -724,6 +761,24 @@
         }
     }
 
+    async Task ShowChatSettings()
+    {
+        if (selectedChat == null)
+        {
+            Snackbar.Add("Please select a chat first.", Severity.Warning);
+            return;
+        }
+        var parameters = new DialogParameters
+        {
+            ["Chat"] = selectedChat,
+            ["UserPermissions"] = selectedChat.Permissions,
+            ["CurrentUserId"] = currentUserId
+        };
+
+        var dialog = DialogService.Show<ChatSettingsDialog>("Cài đặt Chat", parameters);
+        var result = await dialog.Result;
+    }
+
     async Task ShowProfile()
     {
         var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Large };
@@ -734,12 +789,10 @@
     {
         try
         {
-            var createdChat = await ChatService.CreateGroupChatAsync(createGroupChatRequest);
+            await ChatService.CreateGroupChatAsync(createGroupChatRequest);
 
             allChats = await ChatService.GetUserChatsAsync();
             filteredChats = allChats;
-
-            await SelectChat(allChats.FirstOrDefault(c => c.ChatId == createdChat.ChatId));
 
             Snackbar.Add("Group chat created successfully!", Severity.Success);
         }

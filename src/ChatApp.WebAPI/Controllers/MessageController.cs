@@ -53,31 +53,30 @@ namespace ChatApp.WebAPI.Controllers
                     return BadRequest("Reply message not found");
             }
 
+            request.MessageType = MessageType.Text;
             var savedMedia = new List<MediaFile>();
-            if (request.Files == null || request.Files.Count == 0)
+            if (await _chatPermissionService.CanUserPerformAction(CurrentUserId, request.ChatId, ChatPermissions.SendMedia))
             {
-                // Không có file
-                request.MessageType = MessageType.Text;
-            }
-            else
-            {
-                foreach (var file in request.Files)
+                if (request.Files != null && request.Files.Count >= 0)
                 {
-                    var result = await _mediaService.SaveMediaFileAsync(file, CurrentUserId);
-                    savedMedia.Add(result);
-                }
-                bool allImage = request.Files.All(f => f.ContentType.StartsWith("image/"));
-                bool allVideo = request.Files.All(f => f.ContentType.StartsWith("video/"));
-                bool allAudio = request.Files.All(f => f.ContentType.StartsWith("audio/"));
+                    foreach (var file in request.Files)
+                    {
+                        var result = await _mediaService.SaveMediaFileAsync(file, CurrentUserId);
+                        savedMedia.Add(result);
+                    }
+                    bool allImage = request.Files.All(f => f.ContentType.StartsWith("image/"));
+                    bool allVideo = request.Files.All(f => f.ContentType.StartsWith("video/"));
+                    bool allAudio = request.Files.All(f => f.ContentType.StartsWith("audio/"));
 
-                if (allImage)
-                    request.MessageType = MessageType.Image;
-                else if (allVideo)
-                    request.MessageType = MessageType.Video;
-                else if (allAudio)
-                    request.MessageType = MessageType.Audio;
-                else
-                    request.MessageType = MessageType.File;
+                    if (allImage)
+                        request.MessageType = MessageType.Image;
+                    else if (allVideo)
+                        request.MessageType = MessageType.Video;
+                    else if (allAudio)
+                        request.MessageType = MessageType.Audio;
+                    else
+                        request.MessageType = MessageType.File;
+                }
             }
 
             // 4. Tạo message và lưu database
@@ -87,7 +86,7 @@ namespace ChatApp.WebAPI.Controllers
                 SenderId = CurrentUserId,
                 Content = request.Content,
                 MessageType = request.MessageType,
-                MediaFileIds = savedMedia.Select(x=>x.FileId).ToList() ?? new List<int>(), // Chỉ lấy file đầu tiên nếu có nhiều file
+                MediaFileIds = savedMedia.Select(x => x.FileId).ToList() ?? new List<int>(), // Chỉ lấy file đầu tiên nếu có nhiều file
                 ReplyToMessageId = request.ReplyToMessageId,
                 CreatedAt = DateTime.UtcNow
             };
@@ -298,7 +297,7 @@ namespace ChatApp.WebAPI.Controllers
             };
             var mediaFileModels = new List<MediaFileModel>();
             // Xử lý URL cho MediaFile
-            if (mediaFiles!= null)
+            if (mediaFiles != null)
             {
                 var req = _httpContextAccessor.HttpContext?.Request;
                 if (req != null)
