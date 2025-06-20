@@ -1,4 +1,5 @@
-﻿using ChatApp.Domain.Enum;
+﻿using ChatApp.Domain.Entities;
+using ChatApp.Domain.Enum;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,10 +21,10 @@ namespace ChatApp.Application.DTOs
         public List<UserDto> Members { get; set; } = new();
         public int UnreadCount { get; set; }
         public DateTime? LastReadAt { get; set; }
-        public bool IsMuted { get; set; }
         public bool AllowMembersToAddOthers { get; set; } = true;
         public bool AllowMembersToEditInfo { get; set; } = false;
         public int MaxMembers { get; set; } = 1000;
         public ChatPermissions Permissions { get; set; }
+        public List<ChatRolePermissionDto> ChatRolePermissions { get; set; }
     }
 }

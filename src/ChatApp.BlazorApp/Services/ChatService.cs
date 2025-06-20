@@ -1,6 +1,9 @@
 ﻿using ChatApp.Application.DTOs;
+using ChatApp.Domain.Entities;
+using ChatApp.Domain.Enum;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 using Microsoft.AspNetCore.SignalR.Client;
+using MudBlazor;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -18,6 +21,7 @@ namespace ChatApp.BlazorApp.Services
         Task<bool> EditMessageAsync(int messageId, string content);
         Task<bool> DeleteMessageAsync(int messageId, bool deleteForEveryone = false);
         Task<List<MessageDto>> SearchMessagesAsync(int chatId, string query);
+        Task<ChatMemberRole> GetChatMemberRoleAsync(int chatId, string userId);
 
         // SignalR Events
         event Action<MessageDto>? OnMessageReceived;
@@ -277,6 +281,16 @@ namespace ChatApp.BlazorApp.Services
             }
             Console.WriteLine("Không thể lấy token truy cập.");
             return string.Empty;
+        }
+
+        public async Task<ChatMemberRole> GetChatMemberRoleAsync(int chatId, string userId)
+        {
+            var response = await _httpClient.GetAsync($"/api/chat/{chatId}/members/{userId}/roles");
+            response.EnsureSuccessStatusCode();
+
+            var role = await response.Content.ReadFromJsonAsync<ChatMemberRole>(_jsonOptions);
+
+            return role;
         }
     }
 }

@@ -52,7 +52,7 @@ namespace ChatApp.Domain.Enum
         BasicMember = ViewMessages | SendMessages | SendMedia | React |
                      DeleteOwnMessages | EditOwnMessages | ViewMembers | ForwardMessages | ViewMessageHistory,
 
-        Moderator = DeleteAnyMessage | PinMessages |
+        Moderator = BasicMember | DeleteAnyMessage | PinMessages |
                    MuteMembers | ChangeNicknames | ViewMessageHistory,
 
         Admin = Moderator | AddMembers | RemoveMembers | EditGroupInfo |

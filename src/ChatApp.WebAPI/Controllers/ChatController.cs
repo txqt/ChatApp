@@ -71,16 +71,21 @@ namespace ChatApp.WebAPI.Controllers
                                       msg.CreatedAt > (cm.LastReadAt ?? DateTime.MinValue) &&
                                       msg.SenderId != CurrentUserId),
                     LastReadAt = cm.LastReadAt,
-                    IsMuted = cm.IsMuted,
                     Members = chat.Members
                         .Select(m => new UserDto
                         {
                             Id = m.User.Id,
                             DisplayName = m.User.DisplayName,
                             AvatarUrl = m.User.AvatarUrl,
-                            IsOnline = m.User.IsOnline
+                            IsOnline = m.User.IsOnline,
+                            Role = m.Role,
                         })
-                        .ToList()
+                        .ToList(),
+                    ChatRolePermissions = chat.RolePermissions.Select(rp => new ChatRolePermissionDto
+                    {
+                        Role = rp.Role,
+                        Permissions = (ChatPermissions)rp.PermissionMask,
+                    }).ToList(),
                 };
 
                 chatsData.Add(chatDto);

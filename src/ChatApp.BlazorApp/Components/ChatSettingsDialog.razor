@@ -82,7 +82,7 @@
                 @* Tab thành viên - chỉ hiển thị với group *@
                 @if (Chat.ChatType == ChatType.Group)
                 {
-                    var text = "Thành viên " + Chat.Members.Count.ToString();
+                    var text = $"Thành viên ({Chat.Members.Count.ToString()})";
                     <MudTabPanel Text="@text">
                         <MudStack Spacing="3">
 
@@ -134,16 +134,6 @@
                                                             <div style="display: flex; align-items: center;">
                                                                 <MudIcon Icon="Icons.Material.Filled.Security" Class="mr-2" Size="Size.Small" />
                                                                 Đổi vai trò
-                                                            </div>
-                                                        </MudMenuItem>
-                                                    }
-
-                                                    @if (HasPermission(ChatPermissions.MuteMembers))
-                                                    {
-                                                        <MudMenuItem OnClick="@(() => ToggleMuteMember(member.Id))">
-                                                            <div style="display: flex; align-items: center;">
-                                                                <MudIcon Icon="Icons.Material.Filled.VolumeOff" Class="mr-2" Size="Size.Small" />
-                                                                @(IsMemberMuted(member.Id) ? "Bỏ tắt tiếng" : "Tắt tiếng")
                                                             </div>
                                                         </MudMenuItem>
                                                     }
@@ -318,7 +308,6 @@
         editChatName = Chat.ChatName ?? "";
         editDescription = ""; // Sẽ load từ API
         creatorName = ""; // Sẽ load từ API
-        isMuted = Chat.IsMuted;
 
         // Load initial data
         LoadInitialData();
@@ -344,8 +333,8 @@
 
     private ChatMemberRole GetMemberRole(string userId)
     {
-        // Sẽ call API để lấy role của member
-        return ChatMemberRole.Member; // Placeholder
+        var role = Chat.Members.FirstOrDefault(m => m.Id == userId)?.Role ?? ChatMemberRole.Member;
+        return role; // Placeholder
     }
 
     private bool CanManageMember(string memberId)
@@ -356,12 +345,6 @@
         return HasPermission(ChatPermissions.ManageRoles) ||
                HasPermission(ChatPermissions.MuteMembers) ||
                HasPermission(ChatPermissions.RemoveMembers);
-    }
-
-    private bool IsMemberMuted(string userId)
-    {
-        // Call API để check member có bị mute không
-        return false; // Placeholder
     }
 
     private Color GetRoleColor(ChatMemberRole role)
@@ -454,11 +437,11 @@
     // API Calls - Các method này sẽ call tới API backend
     private async Task LoadInitialData()
     {
-        // TODO: Call API để load thông tin chi tiết của chat
-        // - Thông tin creator
-        // - Description của group
-        // - Settings hiện tại
-        // - Role permissions hiện tại
+        RolePermissions = new Dictionary<ChatMemberRole, ChatPermissions>();
+        foreach (var item in Chat.ChatRolePermissions)
+        {
+            RolePermissions[item.Role] = item.Permissions;
+        }
     }
 
     private async Task SaveBasicInfo()
