@@ -3,6 +3,7 @@
 @using MudBlazor
 @inject IJSRuntime JSRuntime
 @inject ISnackbar Snackbar
+@inject IChatService ChatService
 
 <MudDialog>
     <DialogContent>
@@ -61,7 +62,6 @@
 
                         @* Thông tin tạo *@
                         <MudPaper Class="pa-3" Elevation="0" Style="background-color: var(--mud-palette-background-grey);">
-                            <MudText Typo="Typo.caption">Tạo bởi: @creatorName</MudText>
                             <MudText Typo="Typo.caption">Ngày tạo: @Chat.CreatedAt.ToString("dd/MM/yyyy HH:mm")</MudText>
                         </MudPaper>
 
@@ -229,9 +229,6 @@
                                     <MudSwitch T="bool" @bind-Checked="allowMembersToAddOthers"
                                                Label="Cho phép thành viên thêm người khác"
                                                Color="Color.Primary" />
-                                    <MudSwitch T="bool" @bind-Checked="allowMembersToEditInfo"
-                                               Label="Cho phép thành viên sửa thông tin nhóm"
-                                               Color="Color.Primary" />
                                     <MudNumericField @bind-Value="maxMembers"
                                                      Label="Số thành viên tối đa"
                                                      Variant="Variant.Outlined"
@@ -300,14 +297,14 @@
     private int maxMembers;
 
     // Permission management
-    private Dictionary<ChatMemberRole, ChatPermissions> RolePermissions = new();
+    private Dictionary<ChatMemberRole, ChatPermissions> RolePermissions= new();
 
     protected override void OnInitialized()
     {
         // Initialize form fields
         editChatName = Chat.ChatName ?? "";
-        editDescription = ""; // Sẽ load từ API
-        creatorName = ""; // Sẽ load từ API
+        editDescription = Chat.Description ?? "";
+        allowMembersToAddOthers = Chat.AllowMembersToAddOthers;
 
         // Load initial data
         LoadInitialData();
@@ -446,8 +443,13 @@
 
     private async Task SaveBasicInfo()
     {
-        // TODO: Call API để update thông tin cơ bản
-        // POST /api/chats/{chatId}/basic-info
+        var model = new UpdateChatRequest()
+        {
+            ChatId = Chat.ChatId,
+            ChatName = editChatName.Trim(),
+            Description = editDescription.Trim(),
+        };
+        await ChatService.UpdateChatAsync(model);
         Snackbar.Add("Đã lưu thông tin cơ bản", Severity.Success);
     }
 

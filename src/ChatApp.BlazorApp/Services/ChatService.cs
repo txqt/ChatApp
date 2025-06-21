@@ -17,6 +17,7 @@ namespace ChatApp.BlazorApp.Services
         Task<MessageDto> SendMessageAsync(SendMessageRequest request);
         Task<ChatDto> CreateDirectChatAsync(string userId);
         Task CreateGroupChatAsync(CreateGroupChatRequest request);
+        Task UpdateChatAsync(UpdateChatRequest request);
         Task<MediaFileModel> UploadFileAsync(Stream fileStream, string fileName, string contentType);
         Task<bool> EditMessageAsync(int messageId, string content);
         Task<bool> DeleteMessageAsync(int messageId, bool deleteForEveryone = false);
@@ -291,6 +292,12 @@ namespace ChatApp.BlazorApp.Services
             var role = await response.Content.ReadFromJsonAsync<ChatMemberRole>(_jsonOptions);
 
             return role;
+        }
+
+        public async Task UpdateChatAsync(UpdateChatRequest request)
+        {
+            var response = await _httpClient.PutAsJsonAsync("/api/chat", request);
+            response.EnsureSuccessStatusCode();
         }
     }
 }

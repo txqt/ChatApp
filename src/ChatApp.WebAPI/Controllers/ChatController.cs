@@ -86,6 +86,8 @@ namespace ChatApp.WebAPI.Controllers
                         Role = rp.Role,
                         Permissions = (ChatPermissions)rp.PermissionMask,
                     }).ToList(),
+                    AllowMembersToAddOthers = chat.AllowMembersToAddOthers,
+                    MaxMembers = chat.MaxMembers,
                 };
 
                 chatsData.Add(chatDto);
@@ -393,6 +395,33 @@ namespace ChatApp.WebAPI.Controllers
                 .ToList();
 
             return Ok(dtos);
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> UpdateChat([FromBody] UpdateChatRequest request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            
+            // Kiểm tra quyền sửa thông tin nhóm
+            var canEdit = await _chatPermissionService.CanUserPerformAction(CurrentUser, request.ChatId, ChatPermissions.EditGroupInfo);
+            if (!canEdit)
+                return Forbid("You don't have permission to edit this chat");
+
+            var chat = await _context.Chats.FindAsync(request.ChatId);
+            if (chat == null)
+                return NotFound("Chat not found");
+
+            chat.ChatName = request.ChatName;
+            chat.Description = request.Description;
+            chat.AllowMembersToAddOthers = request.AllowMembersToAddOthers;
+            chat.AllowMembersToEditInfo = request.AllowMembersToEditInfo;
+            chat.MaxMembers = request.MaxMembers ?? 1000; // Default max members
+
+            _context.Chats.Update(chat);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Chat info updated successfully" });
         }
 
         private static string Prefix(string baseUrl, string? relativePath)
