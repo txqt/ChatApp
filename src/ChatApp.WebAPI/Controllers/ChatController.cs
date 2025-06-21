@@ -412,11 +412,29 @@ namespace ChatApp.WebAPI.Controllers
             if (chat == null)
                 return NotFound("Chat not found");
 
-            chat.ChatName = request.ChatName;
-            chat.Description = request.Description;
+            // Check if request has data before binding to chat
+            if (request.ChatName != null)
+                chat.ChatName = request.ChatName;
+            if (request.Description != null)
+                chat.Description = request.Description;
             chat.AllowMembersToAddOthers = request.AllowMembersToAddOthers;
             chat.AllowMembersToEditInfo = request.AllowMembersToEditInfo;
             chat.MaxMembers = request.MaxMembers ?? 1000; // Default max members
+
+            if(request.RolePermissions != null && request.RolePermissions.Any())
+            {
+                // Cập nhật quyền cho các role trong chat
+                foreach (var rolePermission in request.RolePermissions)
+                {
+                    var existingRole = chat.RolePermissions.FirstOrDefault(rp => rp.Role == rolePermission.Role);
+                    if (existingRole != null)
+                    {
+                        existingRole.PermissionMask = (long)rolePermission.Permissions;
+                        existingRole.UpdatedAt = DateTime.UtcNow;
+                        existingRole.UpdatedBy = CurrentUserId;
+                    }
+                }
+            }
 
             _context.Chats.Update(chat);
             await _context.SaveChangesAsync();

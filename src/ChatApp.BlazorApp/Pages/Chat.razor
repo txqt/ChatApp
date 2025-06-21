@@ -5,10 +5,12 @@
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthStateProvider
 @implements IAsyncDisposable
+@implements IDisposable
 @attribute [Authorize]
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject IScrollManager ScrollManager
+@inject SignOutSessionStateManager SignOutManager
 
 <MudContainer MaxWidth="MaxWidth.False" Class="pa-0" Style="height: 100vh;">
     @if (!ChatService.IsConnected)
@@ -37,7 +39,7 @@
                 <!-- Search -->
                 <MudPaper Class="pa-2" Elevation="0">
                     <MudTextField @bind-Value="searchQuery"
-                                  @oninput="FilterChats"
+                                  @oninput="OnSearchInput"
                                   Placeholder="Search chats..."
                                   Adornment="Adornment.Start"
                                   AdornmentIcon="Icons.Material.Filled.Search"
@@ -46,114 +48,26 @@
                                   Margin="Margin.Dense" />
                 </MudPaper>
 
-                <div class="d-flex flex-column px-4" style="max-height:70vh;min-height:70vh; overflow:scroll;">
-                    <MudList Clickable="true" T="string">
-                        @if (filteredChats?.Any() == true)
+                @if (isLoadingChats)
+                {
+                    <div class="d-flex flex-column px-4" style="max-height:70vh;min-height:70vh; overflow:scroll;">
+                        @for (int i = 0; i < 5; i++)
                         {
-                            @foreach (var chat in filteredChats)
-                            {
-                                var otherUser = chat.ChatType == ChatType.Direct
-                                ? chat.Members.FirstOrDefault(u => u.Id != currentUserId)
-                                : null;
-                                var isSelected = selectedChat?.ChatId == chat.ChatId;
-
-                                <MudPaper Class="@($"pa-3 cursor-pointer {(isSelected ? "mud-theme-primary" : "")}")"
-                                          Elevation="0"
-                                          @onclick="() => SelectChat(chat)"
-                                          Style="border-bottom: 1px solid var(--mud-palette-divider);">
-                                    <div class="d-flex align-center">
-                                        <div class="position-relative mr-3">
-                                            @if (!string.IsNullOrEmpty(chat.AvatarUrl))
-                                            {
-                                                <MudAvatar Size="Size.Medium">
-                                                    <MudImage Src="@chat.AvatarUrl" Alt="@chat.ChatName" />
-                                                </MudAvatar>
-                                            }
-                                            else if (otherUser != null && !string.IsNullOrEmpty(otherUser.AvatarUrl))
-                                            {
-                                                <MudAvatar Size="Size.Medium">
-                                                    <MudImage Src="@otherUser.AvatarUrl" Alt="@otherUser.DisplayName" />
-                                                </MudAvatar>
-                                            }
-                                            else
-                                            {
-                                                <MudAvatar Color="Color.Primary" Size="Size.Medium">
-                                                    @(chat.ChatType == ChatType.Direct
-                                                                                            ? GetDirectChatInitial(chat)
-                                                                                            : chat.ChatName?.Substring(0, 1))
-                                    </MudAvatar>
-                                                                        }
-
-                                            @if (chat.ChatType == ChatType.Direct && otherUser?.IsOnline == true)
-                                            {
-                                                <MudIcon Icon="Icons.Material.Filled.Circle"
-                                                         Color="Color.Success"
-                                                         Size="Size.Small"
-                                                         Style="position: absolute; bottom: 0; right: 0;" />
-                                            }
-                                        </div>
-
-                                        <div class="flex-grow-1 min-width-0">
-                                            <div class="d-flex justify-space-between align-center">
-                                                <MudText Typo="Typo.subtitle2" Class="text-truncate">
-                                                    @(chat.ChatType == ChatType.Direct ? GetDirectChatName(chat) : chat.ChatName)
-                                                </MudText>
-                                                <MudText Typo="Typo.caption">
-                                                    @GetRelativeTime(chat.UpdatedAt)
-                                                </MudText>
-                                            </div>
-
-                                            <div class="d-flex align-center">
-                                                <MudText Typo="Typo.body2" Class="text-truncate flex-grow-1">
-                                                    @if (chat.LastMessage != null)
-                                                    {
-                                                        if (chat.LastMessage.IsDeleted)
-                                                        {
-                                                            <em>Message deleted</em>
-                                                        }
-                                                        else
-                                                        {
-                                                            <span>@chat.LastMessage.Sender.DisplayName: </span>
-                                                            @if (chat.LastMessage.MessageType == MessageType.Image)
-                                                            {
-                                                                <MudIcon Icon="Icons.Material.Filled.Image" Size="Size.Small" />
-                                                                <span>Image</span>
-                                                            }
-                                                            else if (chat.LastMessage.MessageType == MessageType.Text)
-                                                            {
-                                                                @GetMessagePreview(chat.LastMessage)
-                                                            }
-                                                            else
-                                                            {
-                                                                <MudIcon Icon="Icons.Material.Filled.AttachFile" Size="Size.Small" />
-                                                                <span>File</span>
-                                                            }
-                                                        }
-                                                    }
-                                                </MudText>
-
-                                                <div class="d-flex align-center ml-2">
-                                                    @if (chat.UnreadCount > 0)
-                                                    {
-                                                        <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled" Class="pa-1">
-                                                            @chat.UnreadCount
-                                                        </MudChip>
-                                                    }
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </MudPaper>
-                            }
+                            <MudSkeleton Height="80px" Width="100%" Class="mb-2" />
                         }
-                        else
-                        {
-                            <div class="d-flex justify-center align-center pa-4">
-                                <MudText>No chats found</MudText>
-                            </div>
-                        }
-                    </MudList>
-                </div>
+                    </div>
+                }
+                else
+                {
+                    <Virtualize Items="@filteredChats" Context="chat">
+                        <MudPaper Class="@($"pa-3 cursor-pointer {(IsChatSelected(chat) ? "mud-theme-primary" : "")}")"
+                                  Elevation="0"
+                                  @onclick="() => SelectChat(chat)"
+                                  Style="border-bottom: 1px solid var(--mud-palette-divider);">
+                            <ChatListItem Chat="chat" CurrentUserId="currentUserId" />
+                        </MudPaper>
+                    </Virtualize>
+                }
 
                 <!-- Sidebar Menu -->
                 <MudDivider />
@@ -186,8 +100,8 @@
                             {
                                 <MudAvatar Color="Color.Primary" Size="Size.Medium">
                                     @(selectedChat.ChatType == ChatType.Direct
-                                                                ? GetDirectChatInitial(selectedChat)
-                                                                : selectedChat.ChatName?.Substring(0, 1))
+                                        ? GetDirectChatInitial(selectedChat)
+                                        : selectedChat.ChatName?.Substring(0, 1))
                                 </MudAvatar>
                             }
                         </div>
@@ -234,108 +148,36 @@
                     <MudPaper Class="flex-grow-1 overflow-y-auto pa-4"
                               Elevation="0"
                               Square="true"
-                              Style="background-color: var(--mud-palette-background-grey);" id="chat-container">
-                        @if (messages?.Any() == true)
+                              Style="background-color: var(--mud-palette-background-grey);"
+                              id="chat-container">
+
+                        @if (isLoadingMessages)
                         {
-                            @foreach (var msg in messages)
+                            @* Skeleton loading *@
+                            @for (int i = 0; i < 5; i++)
                             {
-                                <MudMenu Class="d-block align-self-auto"
-                                         ActivationEvent="@MouseEvent.RightClick"
-                                         PositionAtCursor="true">
-                                    <ActivatorContent>
-                                        <div class="@($"d-flex mb-3 {(msg.IsFromCurrentUser ? "justify-end" : "justify-start")}")">
-                                            <MudPaper Class="@($"pa-3 {(msg.IsFromCurrentUser ? "mud-theme-primary" : "")}")"
-                                                      Style="@($"max-width: 70%; border-radius: 18px; {(msg.IsFromCurrentUser ? "border-bottom-right-radius: 5px;" : "border-bottom-left-radius: 5px;")}")"
-                                                      Elevation="1">
-
-                                                @if (msg.ReplyTo != null && !msg.ReplyTo.IsDeleted)
-                                                {
-                                                    <MudPaper Class="pa-2 mb-2"
-                                                              Elevation="0"
-                                                              Style="background-color: var(--mud-palette-background-grey); border-left: 3px solid var(--mud-palette-primary);">
-                                                        <MudText Typo="Typo.caption" Color="Color.Primary">@msg.ReplyTo.Sender.DisplayName</MudText>
-                                                        <MudText Typo="Typo.body2">
-                                                            @if (msg.ReplyTo.MessageType == MessageType.Image)
-                                                            {
-                                                                <MudIcon Icon="@Icons.Material.Filled.Image" Size="Size.Small" />
-                                                                <span>Image</span>
-                                                            }
-                                                            else if (msg.ReplyTo.MessageType == MessageType.Text)
-                                                            {
-                                                                @GetMessagePreview(msg.ReplyTo)
-                                                            }
-                                                            else
-                                                            {
-                                                                <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" />
-                                                                <span>File</span>
-                                                            }
-                                                        </MudText>
-                                                    </MudPaper>
-                                                }
-
-                                                <div>
-                                                    @if (msg.IsDeleted)
-                                                    {
-                                                        <MudText Typo="Typo.body2">
-                                                            <em>Message deleted</em>
-                                                        </MudText>
-                                                    }
-                                                    else if (msg.MediaFiles != null)
-                                                    {
-                                                        foreach (var mediaFile in msg.MediaFiles)
-                                                        {
-                                                            @if (msg.MessageType == MessageType.Image)
-                                                            {
-                                                                <MudImage Src="@mediaFile.FilePath"
-                                                                          Alt="Uploaded image"
-                                                                          Style="max-width: 250px; max-height: 250px; border-radius: 10px;" />
-                                                            }
-                                                            else
-                                                            {
-                                                                var category = mediaFile.ContentType switch
-                                                                {
-                                                                    var ct when ct.StartsWith("image/") => "images",
-                                                                    var ct when ct.StartsWith("video/") => "videos",
-                                                                    var ct when ct.StartsWith("audio/") => "audios",
-                                                                    _ => "others"
-                                                                };
-                                                                if (category == "images")
-                                                                {
-                                                                    <MudImage Src="@mediaFile.FilePath"
-                                                                              Alt="Uploaded image"
-                                                                              Style="max-width: 250px; max-height: 250px; border-radius: 10px;" />
-                                                                }
-                                                                else
-                                                                {
-                                                                    <MudLink Href="@mediaFile.FilePath" Color="@Color.Warning" Target="_blank" Class="d-flex align-center">
-                                                                        <MudIcon Icon="Icons.Material.Filled.AttachFile" Class="mr-2" />
-                                                                        @mediaFile.OriginalFileName
-                                                                    </MudLink>
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                    <MudText Typo="Typo.body1">@msg.Content</MudText>
-                                                </div>
-
-                                                <div class="d-flex justify-end align-center mt-2">
-                                                    <MudText Typo="Typo.caption" Class="mr-1">
-                                                        @msg.CreatedAt.ToString("HH:mm")
-                                                    </MudText>
-                                                    @if (msg.IsEdited && !msg.IsDeleted)
-                                                    {
-                                                        <MudText Typo="Typo.caption">
-                                                            <em>(edited)</em>
-                                                        </MudText>
-                                                    }
-                                                </div>
-                                            </MudPaper>
-                                        </div>
-                                    </ActivatorContent>
-                                </MudMenu>
+                                <div class="d-flex mb-3 @(/* giả sử luôn justify-start cho loading */"justify-start")">
+                                    <MudSkeleton Height="80px" Width="100%" Class="mb-2" />
+                                </div>
                             }
                         }
-
+                        else if (messages?.Any() == true)
+                        {
+                            <Virtualize Items="messages" Context="msg" ItemSize="100">
+                                <ItemContent>
+                                    <MessageItem
+                                        Message="msg"
+                                        CurrentUserId="currentUserId"
+                                        OnMessagePreview="GetMessagePreview" />
+                                </ItemContent>
+                            </Virtualize>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-center align-center flex-grow-1">
+                                <MudText Typo="Typo.h6">No messages yet</MudText>
+                            </div>
+                        }
 
                         @if (typingUsers.TryGetValue(selectedChat.ChatId, out var typingUser))
                         {
@@ -412,6 +254,7 @@
         </MudItem>
     </MudGrid>
 </MudContainer>
+
 @code {
     private List<ChatDto> allChats = new();
     private List<ChatDto> filteredChats = new();
@@ -423,30 +266,44 @@
     private string currentUserId = "";
     private ElementReference messagesDivRef;
     private Timer? typingTimer;
-    @inject AuthenticationStateProvider AuthenticationStateProvider
     private MudTextField<string> InputRef;
     private MudPaper ChatRef;
     private bool _shouldScroll;
     private List<IBrowserFile> selectedFiles = new();
     private List<string> previewUrls = new();
+    private bool isLoadingChats = true;
+    private bool isLoadingMessages = true;
+    private bool isSendingMessage = false;
+    private Timer? searchDebounceTimer;
+    private const int SearchDebounceTime = 300; // ms
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            currentUserId = user.GetUserId();
 
-        currentUserId = user.GetUserId();
-        ChatService.OnMessageReceived += OnMessageReceived;
-        ChatService.OnUserTyping += OnUserTypingReceived;
-        ChatService.OnUserStoppedTyping += OnUserStoppedTyping;
-        ChatService.OnMessageRead += OnMessageRead;
-        ChatService.OnUserOnlineStatusChanged += HandleUserOnlineStatusChanged;
-        await ChatService.StartConnectionAsync();
+            ChatService.OnMessageReceived += OnMessageReceived;
+            ChatService.OnUserTyping += OnUserTypingReceived;
+            ChatService.OnUserStoppedTyping += OnUserStoppedTyping;
+            ChatService.OnMessageRead += OnMessageRead;
+            ChatService.OnUserOnlineStatusChanged += HandleUserOnlineStatusChanged;
+            ChatService.OnConnectionStateChanged += HandleConnectionStateChanged;
 
-        await JSRuntime.InvokeVoidAsync("signalRAddBeforeUnload",
-            DotNetObjectReference.Create(this));
-        allChats = await ChatService.GetUserChatsAsync();
-        filteredChats = allChats;
+            await ChatService.StartConnectionAsync();
+            await JSRuntime.InvokeVoidAsync("signalRAddBeforeUnload", DotNetObjectReference.Create(this));
+
+            allChats = await ChatService.GetUserChatsAsync();
+            filteredChats = allChats;
+            isLoadingChats = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to initialize chat: {ex.Message}", Severity.Error);
+            isLoadingChats = false;
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -459,44 +316,74 @@
         }
     }
 
+    protected override bool ShouldRender()
+    {
+        // Only re-render if there are actual changes to the state
+        return true;
+    }
+
     [JSInvokable]
     public async Task OnBrowserUnload()
     {
-        // Dừng cầu nối trước khi tab đóng
         await ChatService.StopConnectionAsync();
     }
 
-    private void FilterChats(ChangeEventArgs e)
+    private async void OnSearchInput(ChangeEventArgs e)
     {
         searchQuery = e.Value?.ToString() ?? string.Empty;
-        filteredChats = allChats
-            .Where(c => (c.ChatName ?? "").Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
-                       c.Members.Any(m => m.DisplayName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)))
-            .OrderByDescending(c => c.UpdatedAt)
-            .ToList();
+        
+        // Debounce the search
+        searchDebounceTimer?.Dispose();
+        searchDebounceTimer = new Timer(async _ => 
+        {
+            await InvokeAsync(() =>
+            {
+                filteredChats = allChats
+                    .Where(c => (c.ChatName ?? "").Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                               c.Members.Any(m => m.DisplayName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)))
+                    .OrderByDescending(c => c.UpdatedAt)
+                    .ToList();
+                StateHasChanged();
+            });
+        }, null, SearchDebounceTime, Timeout.Infinite);
     }
+
+    private bool IsChatSelected(ChatDto chat) => selectedChat?.ChatId == chat.ChatId;
 
     private async Task SelectChat(ChatDto chat)
     {
-        selectedChat = chat;
-        messages = await ChatService.GetChatMessagesAsync(chat.ChatId);
-        if (messages is not null)
+        try
         {
-            messages = messages
+            selectedChat = chat;
+            isLoadingMessages = true;
+            StateHasChanged();
+
+            messages = await ChatService.GetChatMessagesAsync(chat.ChatId);
+            if (messages is not null)
+            {
+                messages = messages
                     .Select(msg =>
                     {
                         msg.IsFromCurrentUser = msg.Sender.Id == currentUserId;
                         return msg;
                     })
                     .ToList();
+            }
+
+            if (chat.LastMessage != null)
+            {
+                await ChatService.MarkAsReadAsync(chat.ChatId, chat.LastMessage.MessageId);
+            }
+
+            _shouldScroll = true;
+            isLoadingMessages = false;
+            await InputRef.FocusAsync();
         }
-        // Mark messages as read
-        if (chat.LastMessage != null)
+        catch (Exception ex)
         {
-            await ChatService.MarkAsReadAsync(chat.ChatId, chat.LastMessage.MessageId);
+            Snackbar.Add($"Failed to load chat: {ex.Message}", Severity.Error);
+            isLoadingMessages = false;
         }
-        _shouldScroll = true;
-        await InputRef.FocusAsync();
     }
 
     private async Task SendMessage()
@@ -507,33 +394,55 @@
             return;
         }
 
-        using var form = new MultipartFormDataContent();
-
-        form.Add(new StringContent(selectedChat.ChatId.ToString()), "ChatId");
-        form.Add(new StringContent(messageInput ?? ""), "Content");
-
-        // Thêm tất cả file
-        var canSendFiles = selectedChat.Permissions.HasFlag(ChatPermissions.SendMedia);
-        if (canSendFiles)
+        if (string.IsNullOrWhiteSpace(messageInput) && !selectedFiles.Any())
         {
-            foreach (var file in selectedFiles)
-            {
-                var streamContent = new StreamContent(file.OpenReadStream(10_000_000));
-                streamContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
-                // Tên form field phải trùng với property List<IFormFile> Files
-                form.Add(streamContent, "Files", file.Name);
-            }
+            return;
         }
 
-        var msg = await ChatService.SendMessageAsync(form);
+        try
+        {
+            isSendingMessage = true;
+            StateHasChanged();
 
-        // reset UI
-        messageInput = string.Empty;
-        ClearFiles();
-        await InputRef.Clear();
-        _shouldScroll = true;
-        await ChatService.StopTypingAsync(selectedChat.ChatId);
-        await InputRef.FocusAsync();
+            using var form = new MultipartFormDataContent();
+            form.Add(new StringContent(selectedChat.ChatId.ToString()), "ChatId");
+            form.Add(new StringContent(messageInput ?? ""), "Content");
+
+            if (selectedChat.Permissions.HasFlag(ChatPermissions.SendMedia))
+            {
+                foreach (var file in selectedFiles)
+                {
+                    try
+                    {
+                        var streamContent = new StreamContent(file.OpenReadStream(10_000_000));
+                        streamContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+                        form.Add(streamContent, "Files", file.Name);
+                    }
+                    catch (Exception ex)
+                    {
+                        Snackbar.Add($"Error processing file {file.Name}: {ex.Message}", Severity.Error);
+                        continue;
+                    }
+                }
+            }
+
+            var msg = await ChatService.SendMessageAsync(form);
+            
+            messageInput = string.Empty;
+            ClearFiles();
+            await InputRef.Clear();
+            _shouldScroll = true;
+            await ChatService.StopTypingAsync(selectedChat.ChatId);
+            await InputRef.FocusAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to send message: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSendingMessage = false;
+        }
     }
 
     private async Task OpenFileUpload()
@@ -544,7 +453,14 @@
             return;
         }
 
-        await JSRuntime.InvokeVoidAsync("openFileUpload");
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("openFileUpload");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to open file dialog: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task OnFilesSelected(InputFileChangeEventArgs e)
@@ -555,15 +471,42 @@
             return;
         }
 
-        selectedFiles = e.GetMultipleFiles(maximumFileCount: 10).ToList();
-
-        // Tạo preview URLs nếu muốn:
-        previewUrls = new List<string>();
-        foreach (var file in selectedFiles)
+        try
         {
-            var buffer = new byte[file.Size];
-            await file.OpenReadStream(10_000_000).ReadAsync(buffer);
-            previewUrls.Add($"data:{file.ContentType};base64,{Convert.ToBase64String(buffer)}");
+            selectedFiles = e.GetMultipleFiles(maximumFileCount: 10).ToList();
+            previewUrls = new List<string>();
+
+            foreach (var file in selectedFiles)
+            {
+                try
+                {
+                    using var stream = file.OpenReadStream(10_000_000);
+                    var buffer = new byte[file.Size];
+                    await stream.ReadAsync(buffer);
+                    previewUrls.Add($"data:{file.ContentType};base64,{Convert.ToBase64String(buffer)}");
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"Error processing file {file.Name}: {ex.Message}", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error selecting files: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void RemovePreview(string url)
+    {
+        var index = previewUrls.IndexOf(url);
+        if (index >= 0)
+        {
+            previewUrls.RemoveAt(index);
+            if (index < selectedFiles.Count)
+            {
+                selectedFiles.RemoveAt(index);
+            }
         }
     }
 
@@ -577,22 +520,22 @@
     {
         if (selectedChat == null || !selectedChat.Permissions.HasFlag(ChatPermissions.SendMessages))
         {
-            Snackbar.Add("You do not have permission.", Severity.Error);
             return;
         }
 
-        if (selectedChat != null)
+        try
         {
-            // Start typing indicator
             await ChatService.StartTypingAsync(selectedChat.ChatId);
-
-            // Reset timer
             typingTimer?.Dispose();
             typingTimer = new Timer(async _ =>
             {
                 await ChatService.StopTypingAsync(selectedChat.ChatId);
                 typingTimer?.Dispose();
             }, null, 2000, Timeout.Infinite);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error handling typing: {ex.Message}");
         }
     }
 
@@ -606,38 +549,38 @@
 
     private async void OnMessageReceived(MessageDto message)
     {
-        if (selectedChat == null || !selectedChat.Permissions.HasFlag(ChatPermissions.ViewMessages))
+        try
         {
-            Snackbar.Add("You do not have permission.", Severity.Error);
-            return;
-        }
-
-        if (selectedChat?.ChatId == message.ChatId)
-        {
-            message.IsFromCurrentUser = message.Sender.Id == currentUserId;
-            messages.Add(message);
-            StateHasChanged();
-            await ScrollToBottom();
-        }
-
-        // Update chat list
-        var chat = allChats.FirstOrDefault(c => c.ChatId == message.ChatId);
-        if (chat != null)
-        {
-            chat.LastMessage = message;
-            chat.UpdatedAt = message.CreatedAt;
-
-            if (chat.ChatId != selectedChat?.ChatId)
+            if (selectedChat == null || !selectedChat.Permissions.HasFlag(ChatPermissions.ViewMessages))
             {
-                chat.UnreadCount++;
+                return;
             }
 
-            // Reorder chats
-            allChats = allChats
-                .OrderByDescending(c => c.UpdatedAt)
-                .ToList();
+            if (selectedChat?.ChatId == message.ChatId)
+            {
+                message.IsFromCurrentUser = message.Sender.Id == currentUserId;
+                messages.Add(message);
+                _shouldScroll = true;
+                await InvokeAsync(StateHasChanged);
+            }
 
-            FilterChats(new ChangeEventArgs { Value = searchQuery });
+            var chat = allChats.FirstOrDefault(c => c.ChatId == message.ChatId);
+            if (chat != null)
+            {
+                chat.LastMessage = message;
+                chat.UpdatedAt = message.CreatedAt;
+
+                if (chat.ChatId != selectedChat?.ChatId)
+                {
+                    chat.UnreadCount++;
+                }
+
+                allChats = allChats.OrderByDescending(c => c.UpdatedAt).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error processing received message: {ex.Message}");
         }
     }
 
@@ -650,35 +593,36 @@
                 DisplayName = displayName,
                 StartTime = DateTime.Now
             };
-            StateHasChanged();
+            InvokeAsync(StateHasChanged);
         }
     }
 
     private void OnUserStoppedTyping(int chatId)
     {
         typingUsers.Remove(chatId);
-        StateHasChanged();
+        InvokeAsync(StateHasChanged);
     }
 
     private void HandleUserOnlineStatusChanged(string userId, bool isOnline)
     {
-        // Tìm trong selectedChat.Members hoặc allChats nếu bạn lưu trạng thái online ở đó
         foreach (var chat in allChats)
         {
             var member = chat.Members.FirstOrDefault(m => m.Id == userId);
             if (member != null)
             {
                 member.IsOnline = isOnline;
-                // nếu server gửi lastSeen thì gán thêm member.LastSeenAt = dto.LastSeenAt
             }
         }
-        InvokeAsync(() => StateHasChanged());
+        InvokeAsync(StateHasChanged);
     }
 
+    private void HandleConnectionStateChanged(bool isConnected)
+    {
+        InvokeAsync(StateHasChanged);
+    }
 
     private void OnMessageRead(int messageId, int readBy, DateTime readAt)
     {
-        // Update read status in messages
         var message = messages.FirstOrDefault(m => m.MessageId == messageId);
         if (message != null)
         {
@@ -690,14 +634,11 @@
     {
         try
         {
-            // Phương pháp 1: Sử dụng JavaScript trực tiếp
             await JSRuntime.InvokeVoidAsync("scrollToBottom", "chat-container");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Scroll error: {ex.Message}");
-
-            // Phương pháp 2: Fallback với timeout
             try
             {
                 await Task.Delay(100);
@@ -712,8 +653,33 @@
 
     public async ValueTask DisposeAsync()
     {
-        typingTimer?.Dispose();
-        await ChatService.StopConnectionAsync();
+        await Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    public void Dispose()
+    {
+        DisposeAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+    }
+
+    private async ValueTask Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            ChatService.OnMessageReceived -= OnMessageReceived;
+            ChatService.OnUserTyping -= OnUserTypingReceived;
+            ChatService.OnUserStoppedTyping -= OnUserStoppedTyping;
+            ChatService.OnMessageRead -= OnMessageRead;
+            ChatService.OnUserOnlineStatusChanged -= HandleUserOnlineStatusChanged;
+            ChatService.OnConnectionStateChanged -= HandleConnectionStateChanged;
+
+            typingTimer?.Dispose();
+            searchDebounceTimer?.Dispose();
+            await ChatService.StopConnectionAsync();
+
+            // Clear file references
+            ClearFiles();
+        }
     }
 
     private string GetMessagePreview(MessageDto msg) =>
@@ -750,7 +716,6 @@
 
         if (!result.Canceled && result.Data is CreateGroupChatRequest info)
         {
-            // Xử lý kết quả
             await CreateGroupChat(info);
         }
     }
@@ -765,12 +730,18 @@
         var parameters = new DialogParameters
         {
             ["Chat"] = selectedChat,
-            ["UserPermissions"] = selectedChat.Permissions,
             ["CurrentUserId"] = currentUserId
         };
 
         var dialog = DialogService.Show<ChatSettingsDialog>("Cài đặt Chat", parameters);
         var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is ChatDto updated)
+        {
+            var idx = allChats.FindIndex(x => x.ChatId == updated.ChatId);
+            if (idx >= 0)
+                allChats[idx] = updated;
+        }
     }
 
     async Task ShowProfile()
@@ -784,10 +755,8 @@
         try
         {
             await ChatService.CreateGroupChatAsync(createGroupChatRequest);
-
             allChats = await ChatService.GetUserChatsAsync();
             filteredChats = allChats;
-
             Snackbar.Add("Group chat created successfully!", Severity.Success);
         }
         catch (Exception ex)
@@ -796,26 +765,9 @@
         }
     }
 
-    // Menu action methods
-    private void NavigateToProfile()
-    {
-        NavigationManager.NavigateTo("/profile");
-    }
-
-    private void NavigateToSettings()
-    {
-        NavigationManager.NavigateTo("/settings");
-    }
-
-    [Inject]
-    public NavigationManager Navigation { get; set; }
-
-    [Inject]
-    SignOutSessionStateManager SignOutManager { get; set; }
-
     private async Task Logout()
     {
         await SignOutManager.SetSignOutState();
-        Navigation.NavigateTo("/authentication/logout");
+        NavigationManager.NavigateTo("/authentication/logout");
     }
 }

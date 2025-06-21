@@ -36,6 +36,7 @@
                                                OnClick="ChangeAvatar">
                                         Đổi ảnh đại diện
                                     </MudButton>
+                                    <InputFile @ref="fileInput" style="display:none" OnChange="OnAvatarSelected" />
                                 }
                             </MudStack>
                         </MudPaper>
@@ -284,7 +285,6 @@
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
     [Parameter] public ChatDto Chat { get; set; } = null!;
-    [Parameter] public ChatPermissions UserPermissions { get; set; }
     [Parameter] public string CurrentUserId { get; set; } = string.Empty;
 
     // Form fields
@@ -295,6 +295,7 @@
     private bool allowMembersToAddOthers;
     private bool allowMembersToEditInfo;
     private int maxMembers;
+    private InputFile? fileInput;
 
     // Permission management
     private Dictionary<ChatMemberRole, ChatPermissions> RolePermissions= new();
@@ -451,13 +452,48 @@
         };
         await ChatService.UpdateChatAsync(model);
         Snackbar.Add("Đã lưu thông tin cơ bản", Severity.Success);
+
+        Chat.ChatName = editChatName.Trim();
+        Chat.Description = editDescription.Trim();
+
+        MudDialog.Close(DialogResult.Ok(Chat));
     }
 
     private async Task ChangeAvatar()
     {
-        // TODO: Show file picker và upload avatar
-        // POST /api/chats/{chatId}/avatar
+        if (fileInput is not null)
+        {
+            await fileInput.Element.ClickAsync();
+        }
     }
+
+    private async Task OnAvatarSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+
+        using var stream = file.OpenReadStream(5 * 1024 * 1024); // Max 5MB
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        var fileBytes = ms.ToArray();
+
+        var content = new MultipartFormDataContent();
+        content.Add(new ByteArrayContent(fileBytes), "Avatar", file.Name);
+
+        var response = await Http.PutAsync("api/chat", content);
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Cập nhật ảnh đại diện thành công", Severity.Success);
+            var newAvatarUrl = await response.Content.ReadAsStringAsync();
+            Chat.AvatarUrl = newAvatarUrl;
+            StateHasChanged();
+        }
+        else
+        {
+            Snackbar.Add("Thất bại khi cập nhật ảnh đại diện", Severity.Error);
+        }
+    }
+
 
     private async Task ShowAddMembersDialog(MouseEventArgs e)
     {
@@ -488,9 +524,29 @@
 
     private async Task SavePermissions()
     {
-        // TODO: Save role permissions
-        // PUT /api/chats/{chatId}/permissions
+        if(RolePermissions.Count == 0)
+        {
+            Snackbar.Add("Chưa có thay đổi nào để lưu", Severity.Warning);
+            return;
+        }
+
+        var rolePermissions = RolePermissions.Select(rp => new ChatRolePermissionDto
+            {
+                Role = rp.Key,
+                Permissions = rp.Value
+            }).ToList();
+
+        var model = new UpdateChatRequest()
+        {
+            ChatId = Chat.ChatId,
+            RolePermissions = rolePermissions
+        };
+        await ChatService.UpdateChatAsync(model);
         Snackbar.Add("Đã lưu cài đặt phân quyền", Severity.Success);
+
+        Chat.ChatRolePermissions = rolePermissions;
+
+        MudDialog.Close(DialogResult.Ok(Chat));
     }
 
     private async Task ExportChat()

@@ -1,0 +1,90 @@
+﻿@inject NavigationManager NavManager
+
+<MudMenu Class="d-block align-self-auto"
+         ActivationEvent="@MouseEvent.RightClick"
+         PositionAtCursor="true">
+    <ActivatorContent>
+        <div class="@($"d-flex mb-3 {(Message.IsFromCurrentUser ? "justify-end" : "justify-start")}")">
+            <MudPaper Class="@($"pa-3 {(Message.IsFromCurrentUser ? "mud-theme-primary" : "")}")"
+                      Style="@($"max-width: 70%; border-radius: 18px; {(Message.IsFromCurrentUser ? "border-bottom-right-radius: 5px;" : "border-bottom-left-radius: 5px;")}")"
+                      Elevation="1">
+
+                @* Reply preview *@
+                @if (Message.ReplyTo != null && !Message.ReplyTo.IsDeleted)
+                {
+                    <MudPaper Class="pa-2 mb-2"
+                              Elevation="0"
+                              Style="background-color: var(--mud-palette-background-grey); border-left: 3px solid var(--mud-palette-primary);">
+                        <MudText Typo="Typo.caption" Color="Color.Primary">
+                            @Message.ReplyTo.Sender.DisplayName
+                        </MudText>
+                        <MudText Typo="Typo.body2">
+                            @if (Message.ReplyTo.MessageType == MessageType.Image)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Image" Size="Size.Small" />
+                                <span>Image</span>
+                            }
+                            else if (Message.ReplyTo.MessageType == MessageType.Text)
+                            {
+                                @OnMessagePreview(Message.ReplyTo)
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" />
+                                <span>File</span>
+                            }
+                        </MudText>
+                    </MudPaper>
+                }
+
+                @* Media hoặc text chính *@
+                <div>
+                    @if (Message.IsDeleted)
+                    {
+                        <MudText Typo="Typo.body2"><em>Message deleted</em></MudText>
+                    }
+                    else if (Message.MediaFiles?.Any() == true)
+                    {
+                        @foreach (var media in Message.MediaFiles)
+                        {
+                            @if (media.ContentType.StartsWith("image/"))
+                            {
+                                <MudImage Src="@media.FilePath"
+                                          Alt="@media.OriginalFileName"
+                                          Style="max-width: 250px; max-height: 250px; border-radius: 10px;" />
+                            }
+                            else
+                            {
+                                <MudLink Href="@media.FilePath"
+                                         Color="Color.Warning"
+                                         Target="_blank"
+                                         Class="d-flex align-center">
+                                    <MudIcon Icon="Icons.Material.Filled.AttachFile" Class="mr-2" />
+                                    @media.OriginalFileName
+                                </MudLink>
+                            }
+                        }
+                    }
+                    <MudText Typo="Typo.body1">@Message.Content</MudText>
+                </div>
+
+                @* Time và edited flag *@
+                <div class="d-flex justify-end align-center mt-2">
+                    <MudText Typo="Typo.caption" Class="mr-1">
+                        @Message.CreatedAt.ToString("HH:mm")
+                    </MudText>
+                    @if (Message.IsEdited && !Message.IsDeleted)
+                    {
+                        <MudText Typo="Typo.caption"><em>(edited)</em></MudText>
+                    }
+                </div>
+            </MudPaper>
+        </div>
+    </ActivatorContent>
+</MudMenu>
+
+@code {
+    [Parameter] public MessageDto Message { get; set; } = default!;
+    [Parameter] public string CurrentUserId { get; set; } = default!;
+    [Parameter] public Func<MessageDto, string> OnMessagePreview { get; set; } = default!;
+}

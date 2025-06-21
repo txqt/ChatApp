@@ -11,7 +11,5 @@ namespace ChatApp.Application.DTOs
     {
         public ChatMemberRole Role { get; set; }
         public ChatPermissions Permissions{ get; set; }
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-        public string UpdatedBy { get; set; }
     }
 }

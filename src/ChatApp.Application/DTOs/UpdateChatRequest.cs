@@ -1,7 +1,10 @@
-﻿using System;
+﻿using ChatApp.Domain.Enum;
+using Microsoft.AspNetCore.Http;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace ChatApp.Application.DTOs
@@ -14,5 +17,7 @@ namespace ChatApp.Application.DTOs
         public bool AllowMembersToAddOthers { get; set; }
         public bool AllowMembersToEditInfo { get; set; }
         public int? MaxMembers { get; set; } = 1000;
+        public List<ChatRolePermissionDto>? RolePermissions { get; set; }
+        public IFormFile Avatar { get; set; } = null!;
     }
 }

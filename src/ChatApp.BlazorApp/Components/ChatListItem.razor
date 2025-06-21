@@ -1,0 +1,109 @@
+﻿<div class="d-flex align-center">
+    <div class="position-relative mr-3">
+        @if (!string.IsNullOrEmpty(Chat.AvatarUrl))
+        {
+            <MudAvatar Size="Size.Medium">
+                <MudImage Src="@Chat.AvatarUrl" Alt="@Chat.ChatName" />
+            </MudAvatar>
+        }
+        else if (Chat.ChatType == ChatType.Direct
+        && Chat.Members.FirstOrDefault(u => u.Id != CurrentUserId)?.AvatarUrl is string otherUrl
+        && !string.IsNullOrEmpty(otherUrl))
+        {
+            <MudAvatar Size="Size.Medium">
+                <MudImage Src="@otherUrl" Alt="Avatar" />
+            </MudAvatar>
+        }
+        else
+        {
+            <MudAvatar Color="Color.Primary" Size="Size.Medium">
+                @(Chat.ChatType == ChatType.Direct
+                            ? GetDirectChatInitial(Chat)
+                            : Chat.ChatName?[0].ToString())
+        </MudAvatar>
+                }
+
+        @if (Chat.ChatType == ChatType.Direct
+                && Chat.Members.FirstOrDefault(u => u.Id != CurrentUserId)?.IsOnline == true)
+        {
+            <MudIcon Icon="Icons.Material.Filled.Circle"
+                     Color="Color.Success"
+                     Size="Size.Small"
+                     Style="position: absolute; bottom: 0; right: 0;" />
+        }
+    </div>
+
+    <div class="flex-grow-1 min-width-0">
+        <div class="d-flex justify-space-between align-center">
+            <MudText Typo="Typo.subtitle2" Class="text-truncate">
+                @(Chat.ChatType == ChatType.Direct ? GetDirectChatName(Chat) : Chat.ChatName)
+            </MudText>
+            <MudText Typo="Typo.caption">
+                @GetRelativeTime(Chat.UpdatedAt)
+            </MudText>
+        </div>
+
+        <div class="d-flex align-center">
+            <MudText Typo="Typo.body2" Class="text-truncate flex-grow-1">
+                @if (Chat.LastMessage != null)
+                {
+                    if (Chat.LastMessage.IsDeleted)
+                    {
+                        <em>Message deleted</em>
+                    }
+                    else
+                    {
+                        <span>@Chat.LastMessage.Sender.DisplayName: </span>
+                        @switch (Chat.LastMessage.MessageType)
+                        {
+                            case MessageType.Image:
+                                <MudIcon Icon="Icons.Material.Filled.Image" Size="Size.Small" />
+                                <span>Image</span>
+                                break;
+                            case MessageType.Text:
+                                @GetMessagePreview(Chat.LastMessage)
+                                break;
+                            default:
+                                <MudIcon Icon="Icons.Material.Filled.AttachFile" Size="Size.Small" />
+                                <span>File</span>
+                                break;
+                        }
+                    }
+                }
+            </MudText>
+
+            @if (Chat.UnreadCount > 0)
+            {
+                <div class="ml-2">
+                    <MudChip T="string"
+                             Size="Size.Small"
+                             Color="Color.Primary"
+                             Variant="Variant.Filled"
+                             Class="pa-1">
+                        @Chat.UnreadCount
+                    </MudChip>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public ChatDto Chat { get; set; } = default!;
+    [Parameter] public string CurrentUserId { get; set; } = default!;
+
+    private string GetDirectChatName(ChatDto chat)
+        => chat.Members.First(m => m.Id != CurrentUserId).DisplayName;
+
+    private string GetDirectChatInitial(ChatDto chat)
+        => GetDirectChatName(chat).Substring(0, 1);
+
+    private string GetMessagePreview(MessageDto msg)
+        => msg.Content.Length > 50 ? msg.Content[..50] + "…" : msg.Content;
+
+    private string GetRelativeTime(DateTime updatedAt)
+        => /* your implementation, ví dụ: */
+           (DateTime.UtcNow - updatedAt).TotalMinutes < 60
+             ? $"{(int)(DateTime.UtcNow - updatedAt).TotalMinutes}m"
+             : updatedAt.ToString("HH:mm");
+}

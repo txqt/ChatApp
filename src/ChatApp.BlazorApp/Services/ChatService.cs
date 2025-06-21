@@ -29,6 +29,7 @@ namespace ChatApp.BlazorApp.Services
         event Action<int, string>? OnUserTyping;
         event Action<int>? OnUserStoppedTyping;
         event Action<string, bool>? OnUserOnlineStatusChanged;
+        event Action<bool>? OnConnectionStateChanged;
         event Action<int, int, DateTime>? OnMessageRead;
 
         Task StartConnectionAsync();
@@ -67,6 +68,7 @@ namespace ChatApp.BlazorApp.Services
         public event Action<string, bool>? OnUserOnlineStatusChanged;
         public event Action<int, int, DateTime>? OnMessageRead;
         public event Action? ConnectionStateChanged;
+        public event Action<bool>? OnConnectionStateChanged;
 
         public async Task<List<ChatDto>> GetUserChatsAsync()
         {
