@@ -1,7 +1,4 @@
-﻿@using ChatApp.Application.DTOs
-@using ChatApp.Domain.Enum
-@using MudBlazor
-@inject IJSRuntime JSRuntime
+﻿@inject IJSRuntime JSRuntime
 @inject ISnackbar Snackbar
 @inject IChatService ChatService
 
@@ -33,10 +30,23 @@
                                     <MudButton StartIcon="@Icons.Material.Filled.PhotoCamera"
                                                Variant="Variant.Outlined"
                                                Size="Size.Small"
-                                               OnClick="ChangeAvatar">
-                                        Đổi ảnh đại diện
+                                               OnClick="ChangeAvatar"
+                                               Disabled="isUploadingAvatar"
+                                               Class="@(isUploadingAvatar ? "mud-button-loading" : "")">
+                                        @if (isUploadingAvatar)
+                                        {
+                                            <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                            <span class="ml-2">Đang tải...</span>
+                                        }
+                                        else
+                                        {
+                                            <span>Đổi ảnh đại diện</span>
+                                        }
                                     </MudButton>
-                                    <InputFile @ref="fileInput" style="display:none" OnChange="OnAvatarSelected" />
+                                    <InputFile @ref="fileInput"
+                                               style="display:none"
+                                               OnChange="OnAvatarSelected"
+                                               accept="image/*" />
                                 }
                             </MudStack>
                         </MudPaper>
@@ -165,7 +175,7 @@
                     <MudTabPanel Text="Phân quyền">
                         <MudStack Spacing="4">
                             <MudText Typo="Typo.h6">Cài đặt quyền theo vai trò</MudText>
-                            
+
                             <MudExpansionPanels MultiExpansion="true">
                                 @foreach (ChatMemberRole role in availableRoles)
                                 {
@@ -197,11 +207,11 @@
                                 }
                             </MudExpansionPanels>
 
-                            <MudButton Variant="Variant.Filled" 
-                                     Color="Color.Primary" 
-                                     StartIcon="Icons.Material.Filled.Save"
-                                     OnClick="SavePermissions"
-                                     FullWidth="true">
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       StartIcon="Icons.Material.Filled.Save"
+                                       OnClick="SavePermissions"
+                                       FullWidth="true">
                                 Lưu cài đặt quyền
                             </MudButton>
                         </MudStack>
@@ -296,9 +306,12 @@
     private bool allowMembersToEditInfo;
     private int maxMembers;
     private InputFile? fileInput;
+    private bool isUploadingAvatar = false;
+    private const long MaxFileSize = 5 * 1024 * 1024; // 5MB
+    private readonly string[] allowedImageTypes = { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp" };
 
     // Permission management
-    private Dictionary<ChatMemberRole, ChatPermissions> RolePermissions= new();
+    private Dictionary<ChatMemberRole, ChatPermissions> RolePermissions = new();
 
     protected override void OnInitialized()
     {
@@ -442,29 +455,27 @@
         }
     }
 
-    private async Task SaveBasicInfo()
-    {
-        var model = new UpdateChatRequest()
-        {
-            ChatId = Chat.ChatId,
-            ChatName = editChatName.Trim(),
-            Description = editDescription.Trim(),
-        };
-        await ChatService.UpdateChatAsync(model);
-        Snackbar.Add("Đã lưu thông tin cơ bản", Severity.Success);
-
-        Chat.ChatName = editChatName.Trim();
-        Chat.Description = editDescription.Trim();
-
-        MudDialog.Close(DialogResult.Ok(Chat));
-    }
-
     private async Task ChangeAvatar()
     {
         if (fileInput is not null)
         {
-            await fileInput.Element.ClickAsync();
+            await JSRuntime.InvokeVoidAsync("clickElement", fileInput.Element);
         }
+    }
+
+    private async Task SaveBasicInfo()
+    {
+        var content = new MultipartFormDataContent();
+        content.Add(new StringContent(Chat.ChatId.ToString()), "ChatId");
+        content.Add(new StringContent(editChatName.Trim()), "ChatName");
+        content.Add(new StringContent(editDescription.Trim()), "Description");
+
+        await ChatService.UpdateChatAsync(content);
+        Snackbar.Add("Đã lưu thông tin cơ bản", Severity.Success);
+
+        Chat.ChatName = editChatName.Trim();
+        Chat.Description = editDescription.Trim();
+        MudDialog.Close(DialogResult.Ok(Chat));
     }
 
     private async Task OnAvatarSelected(InputFileChangeEventArgs e)
@@ -472,29 +483,80 @@
         var file = e.File;
         if (file is null) return;
 
-        using var stream = file.OpenReadStream(5 * 1024 * 1024); // Max 5MB
-        using var ms = new MemoryStream();
-        await stream.CopyToAsync(ms);
-        var fileBytes = ms.ToArray();
-
-        var content = new MultipartFormDataContent();
-        content.Add(new ByteArrayContent(fileBytes), "Avatar", file.Name);
-
-        var response = await Http.PutAsync("api/chat", content);
-        if (response.IsSuccessStatusCode)
+        var allowed = new[] { "image/jpeg", "image/png", "image/gif", "image/webp" };
+        if (!allowed.Contains(file.ContentType.ToLower()))
         {
-            Snackbar.Add("Cập nhật ảnh đại diện thành công", Severity.Success);
-            var newAvatarUrl = await response.Content.ReadAsStringAsync();
-            Chat.AvatarUrl = newAvatarUrl;
-            StateHasChanged();
+            Snackbar.Add("Chỉ chấp nhận JPG/PNG/GIF/WebP", Severity.Error);
+            return;
         }
-        else
+        if (file.Size > MaxFileSize)
         {
-            Snackbar.Add("Thất bại khi cập nhật ảnh đại diện", Severity.Error);
+            Snackbar.Add("File quá lớn (max 5MB)", Severity.Error);
+            return;
+        }
+
+        isUploadingAvatar = true;
+        StateHasChanged();
+
+        try
+        {
+            var resized = await file.RequestImageFileAsync("image/jpeg", 512, 512);
+            using var stream = resized.OpenReadStream(MaxFileSize);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+
+            var fileContent = new ByteArrayContent(ms.ToArray());
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+
+            var chatIdContent = new StringContent(Chat.ChatId.ToString());
+            chatIdContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+
+            // Đóng gói Multipart
+            using var content = new MultipartFormDataContent();
+            content.Add(fileContent, "Avatar", file.Name);
+            content.Add(chatIdContent, "ChatId");
+
+            await ChatService.UpdateChatAsync(content);
+            Snackbar.Add("Cập nhật ảnh đại diện thành công. F5 lại để cập nhật giao diện", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi upload: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isUploadingAvatar = false;
+            StateHasChanged();
         }
     }
 
+    private async Task SavePermissions()
+    {
+        if (!RolePermissions.Any())
+        {
+            Snackbar.Add("Chưa có thay đổi nào để lưu", Severity.Warning);
+            return;
+        }
 
+        var dtoList = RolePermissions
+            .Select(kv => new ChatRolePermissionDto
+            {
+                Role = kv.Key,
+                Permissions = kv.Value
+            }).ToList();
+
+        var content = new MultipartFormDataContent();
+        content.Add(new StringContent(Chat.ChatId.ToString()), "ChatId");
+        // chuyển list thành JSON string rồi gửi
+        var json = JsonSerializer.Serialize(dtoList);
+        content.Add(new StringContent(json, Encoding.UTF8, "application/json"), "RolePermissionsJson");
+
+        await ChatService.UpdateChatAsync(content);
+        Snackbar.Add("Đã lưu cài đặt phân quyền", Severity.Success);
+
+        Chat.ChatRolePermissions = dtoList;
+        MudDialog.Close(DialogResult.Ok(Chat));
+    }
     private async Task ShowAddMembersDialog(MouseEventArgs e)
     {
         // TODO: Show dialog để chọn users để thêm vào group
@@ -520,33 +582,6 @@
         // TODO: Show confirmation dialog và remove member
         // DELETE /api/chats/{chatId}/members/{userId}
         Snackbar.Add("Đã kick thành viên khỏi nhóm", Severity.Warning);
-    }
-
-    private async Task SavePermissions()
-    {
-        if(RolePermissions.Count == 0)
-        {
-            Snackbar.Add("Chưa có thay đổi nào để lưu", Severity.Warning);
-            return;
-        }
-
-        var rolePermissions = RolePermissions.Select(rp => new ChatRolePermissionDto
-            {
-                Role = rp.Key,
-                Permissions = rp.Value
-            }).ToList();
-
-        var model = new UpdateChatRequest()
-        {
-            ChatId = Chat.ChatId,
-            RolePermissions = rolePermissions
-        };
-        await ChatService.UpdateChatAsync(model);
-        Snackbar.Add("Đã lưu cài đặt phân quyền", Severity.Success);
-
-        Chat.ChatRolePermissions = rolePermissions;
-
-        MudDialog.Close(DialogResult.Ok(Chat));
     }
 
     private async Task ExportChat()

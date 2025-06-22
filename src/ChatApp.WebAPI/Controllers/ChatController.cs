@@ -4,6 +4,7 @@ using ChatApp.Domain.Entities;
 using ChatApp.Domain.Enum;
 using ChatApp.Infrastructure.Services;
 using ChatApp.WebAPI.Attributes;
+using ChatApp.WebAPI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -15,12 +16,14 @@ namespace ChatApp.WebAPI.Controllers
         private readonly IApplicationDbContext _context;
         private readonly IChatPermissionService _chatPermissionService;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IMediaService _mediaService;
 
-        public ChatController(IApplicationDbContext context, IUserService userService, IChatPermissionService chatPermissionService, IHttpContextAccessor httpContextAccessor) : base(userService)
+        public ChatController(IApplicationDbContext context, IUserService userService, IChatPermissionService chatPermissionService, IHttpContextAccessor httpContextAccessor, IMediaService mediaService) : base(userService)
         {
             _context = context;
             _chatPermissionService = chatPermissionService;
             _httpContextAccessor = httpContextAccessor;
+            _mediaService = mediaService;
         }
 
         [HttpGet]
@@ -37,6 +40,9 @@ namespace ChatApp.WebAPI.Controllers
                         .ThenInclude(m => m.User)
                 .ToListAsync();
 
+            var req = _httpContextAccessor.HttpContext!.Request;
+            var baseUrl = $"{req.Scheme}://{req.Host}";
+
             // Step 2: Map with async data (e.g. permissions)
             var chatsData = new List<ChatDto>();
             foreach (var cm in chatEntities)
@@ -48,7 +54,7 @@ namespace ChatApp.WebAPI.Controllers
                     ChatId = chat.ChatId,
                     ChatName = chat.ChatName,
                     ChatType = chat.ChatType,
-                    AvatarUrl = chat.AvatarUrl,
+                    AvatarUrl = Prefix(baseUrl, chat.AvatarUrl),
                     CreatedAt = chat.CreatedAt,
                     UpdatedAt = chat.UpdatedAt,
                     Permissions = await _chatPermissionService.GetUserPermissions(CurrentUser, chat.ChatId),
@@ -139,7 +145,7 @@ namespace ChatApp.WebAPI.Controllers
                 IsActive = true
             };
 
-            
+
             _context.Chats.Add(chat);
             await _context.SaveChangesAsync();
 
@@ -388,7 +394,7 @@ namespace ChatApp.WebAPI.Controllers
                         },
                         MediaFiles = mediaList,
                         ReplyTo = replyDto,
-                        IsForwarded = false 
+                        IsForwarded = false
                     };
                 })
                 .OrderBy(m => m.CreatedAt)
@@ -398,11 +404,11 @@ namespace ChatApp.WebAPI.Controllers
         }
 
         [HttpPut]
-        public async Task<IActionResult> UpdateChat([FromBody] UpdateChatRequest request)
+        public async Task<IActionResult> UpdateChat([FromForm] UpdateChatRequest request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-            
+
             // Kiểm tra quyền sửa thông tin nhóm
             var canEdit = await _chatPermissionService.CanUserPerformAction(CurrentUser, request.ChatId, ChatPermissions.EditGroupInfo);
             if (!canEdit)
@@ -421,7 +427,7 @@ namespace ChatApp.WebAPI.Controllers
             chat.AllowMembersToEditInfo = request.AllowMembersToEditInfo;
             chat.MaxMembers = request.MaxMembers ?? 1000; // Default max members
 
-            if(request.RolePermissions != null && request.RolePermissions.Any())
+            if (request.RolePermissions != null && request.RolePermissions.Any())
             {
                 // Cập nhật quyền cho các role trong chat
                 foreach (var rolePermission in request.RolePermissions)
@@ -434,6 +440,18 @@ namespace ChatApp.WebAPI.Controllers
                         existingRole.UpdatedBy = CurrentUserId;
                     }
                 }
+            }
+
+            if (request.Avatar != null)
+            {
+                if (request.Avatar.Length > 5 * 1024 * 1024)
+                {
+                    return BadRequest("File quá lớn. Kích thước tối đa 5MB");
+                }
+
+                var result = await _mediaService.SaveMediaFileAsync(request.Avatar, CurrentUserId);
+                if (result != null)
+                    chat.AvatarUrl = result.FilePath;
             }
 
             _context.Chats.Update(chat);

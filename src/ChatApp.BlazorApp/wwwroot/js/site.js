@@ -42,3 +42,7 @@ window.openFileUpload = () => {
         }
     }, 100);
 };
+
+window.clickElement = (element) => {
+    element.click();
+};

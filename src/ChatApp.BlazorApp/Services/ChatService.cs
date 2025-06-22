@@ -18,6 +18,7 @@ namespace ChatApp.BlazorApp.Services
         Task<ChatDto> CreateDirectChatAsync(string userId);
         Task CreateGroupChatAsync(CreateGroupChatRequest request);
         Task UpdateChatAsync(UpdateChatRequest request);
+        Task UpdateChatAsync(MultipartFormDataContent content);
         Task<MediaFileModel> UploadFileAsync(Stream fileStream, string fileName, string contentType);
         Task<bool> EditMessageAsync(int messageId, string content);
         Task<bool> DeleteMessageAsync(int messageId, bool deleteForEveryone = false);
@@ -299,6 +300,12 @@ namespace ChatApp.BlazorApp.Services
         public async Task UpdateChatAsync(UpdateChatRequest request)
         {
             var response = await _httpClient.PutAsJsonAsync("/api/chat", request);
+            response.EnsureSuccessStatusCode();
+        }
+
+        public async Task UpdateChatAsync(MultipartFormDataContent content)
+        {
+            var response = await _httpClient.PutAsync("/api/chat", content);
             response.EnsureSuccessStatusCode();
         }
     }
