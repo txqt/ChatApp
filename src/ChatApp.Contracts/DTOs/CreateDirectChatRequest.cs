@@ -4,10 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ChatApp.Application.DTOs
+namespace ChatApp.Contracts.DTOs
 {
-    public class SendFriendRequestDto
+    public class CreateDirectChatRequest
     {
-        public string ReceiverId { get; set; }
+        public string UserId { get; set; }
     }
 }

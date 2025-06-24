@@ -3,7 +3,7 @@
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
 
-<MudTabs @bind-ActivePanelIndex="activeIndex" Rounded="false">
+<MudTabs @bind-ActivePanelIndex="activeIndex" Rounded="false" Position="Position.Left" Style="height:600px; max-height:90vh;">
     <MudTabPanel Text="Lời mời kết bạn">
         <div class="mt-4"></div>
         @if (pendingRequests.Any())

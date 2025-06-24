@@ -4,41 +4,40 @@
 @inject NavigationManager NavigationManager
 @using MudBlazor
 
-<PageTitle>Quản lý bạn bè</PageTitle>
+<MudContainer MaxWidth="MaxWidth.Large">
+    <MudText Typo="Typo.h4" GutterBottom="true">
+        <MudIcon Icon="@Icons.Material.Filled.PersonAdd" /> Quản lý bạn bè
+    </MudText>
 
-<MudText Typo="Typo.h4" GutterBottom="true">
-    <MudIcon Icon="@Icons.Material.Filled.PersonAdd" /> Quản lý bạn bè
-</MudText>
-
-<MudTabs @bind-ActivePanelIndex="activeIndex" Rounded="false">
-    <MudTabPanel Text="Tìm kiếm">
-        <MudCard Class="mt-4">
-            <MudCardHeader>
-                <MudText Typo="Typo.h6"><MudIcon Icon="@Icons.Material.Filled.Search" /> Tìm kiếm người dùng</MudText>
-            </MudCardHeader>
-            <MudCardContent>
-                <UserSearch OnStartChat="HandleStartChat" />
-            </MudCardContent>
-        </MudCard>
-    </MudTabPanel>
-    <MudTabPanel Text="Kết bạn">
-        <MudCard Class="mt-4">
-            <MudCardContent>
-                <FriendRequests @ref="friendRequestsComponent" OnRequestsChanged="HandleRequestsChanged" />
-            </MudCardContent>
-        </MudCard>
-    </MudTabPanel>
-    <MudTabPanel Text="Bạn bè">
-        <MudCard Class="mt-4">
-            <MudCardContent>
-                <FriendsList @ref="friendsListComponent"
-                             OnStartChat="HandleStartChat"
-                             OnFriendsChanged="HandleFriendsChanged" />
-            </MudCardContent>
-        </MudCard>
-    </MudTabPanel>
-</MudTabs>
-
+    <MudTabs @bind-ActivePanelIndex="activeIndex" Rounded="false">
+        <MudTabPanel Text="Tìm kiếm">
+            <MudCard Class="mt-4">
+                <MudCardHeader>
+                    <MudText Typo="Typo.h6"><MudIcon Icon="@Icons.Material.Filled.Search" /> Tìm kiếm người dùng</MudText>
+                </MudCardHeader>
+                <MudCardContent>
+                    <UserSearch OnStartChat="HandleStartChat" />
+                </MudCardContent>
+            </MudCard>
+        </MudTabPanel>
+        <MudTabPanel Text="Kết bạn">
+            <MudCard Class="mt-4">
+                <MudCardContent>
+                    <FriendRequests @ref="friendRequestsComponent" OnRequestsChanged="HandleRequestsChanged" />
+                </MudCardContent>
+            </MudCard>
+        </MudTabPanel>
+        <MudTabPanel Text="Bạn bè">
+            <MudCard Class="mt-4">
+                <MudCardContent>
+                    <FriendsList @ref="friendsListComponent"
+                                 OnStartChat="HandleStartChat"
+                                 OnFriendsChanged="HandleFriendsChanged" />
+                </MudCardContent>
+            </MudCard>
+        </MudTabPanel>
+    </MudTabs>
+</MudContainer>
 @code {
     private int activeIndex = 2;
     private int pendingRequestsCount = 0;

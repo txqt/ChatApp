@@ -1,7 +1,5 @@
-﻿using ChatApp.Domain.Enum;
-using ChatApp.Infrastructure.Services;
-using System;
-using System.Threading.Tasks;
+﻿using ChatApp.Application.Interfaces;
+using ChatApp.Domain.Enum;
 
 namespace ChatApp.WebAPI.Extensions
 {

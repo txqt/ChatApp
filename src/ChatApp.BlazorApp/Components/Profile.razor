@@ -2,23 +2,14 @@
 @inject IDialogService DialogService
 @inject ThemeService ThemeService
 
-<MudDialog MaxWidth="MaxWidth.Large" FullWidth="true">
+<MudDialog Style="max-width:1000px; width:1000px;">
     <DialogContent>
     <MudGrid GutterSize="3">
         <MudItem xs="12">
             <MudCard>
-                <!-- Mobile tabs header -->
-                <MudHidden Breakpoint="Breakpoint.MdAndUp">
-                    <MudTabs Rounded="false" Elevation="0" Align="Center">
-                        <MudTabPanel Icon="@Icons.Material.Filled.Person" />
-                        <MudTabPanel Icon="@Icons.Material.Filled.CreditCard" />
-                        <MudTabPanel Icon="@Icons.Material.Filled.Settings" />
-                    </MudTabs>
-                </MudHidden>
-
                 <MudCardContent>
                     <!-- Main tabs -->
-                    <MudTabs>
+                    <MudTabs Position="Position.Left" MinimumTabWidth="100px">
                         <MudTabPanel Text="Profile" Value="profile">
                             <UserInfo />
                         </MudTabPanel>
@@ -31,7 +22,7 @@
                             <MudItem xs="12" Class="mt-4">
                                     <MudSwitch @bind-Value:get="@ThemeService.IsDarkMode" Color="Color.Primary" T="bool" @bind-Value:set="async _ => await ThemeService.ToggleDarkModeAsync()">
                                             Dark Mode
-                                        </MudSwitch>
+                                    </MudSwitch>
                             </MudItem>
                         </MudTabPanel>
                     </MudTabs>

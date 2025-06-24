@@ -1,7 +1,8 @@
 ﻿using Auth0.ManagementApi.Models;
-using ChatApp.Application.DTOs;
+using ChatApp.Application.Interfaces;
+using ChatApp.Contracts.DTOs;
 using ChatApp.Domain.Enum;
-using ChatApp.Infrastructure.Services;
+
 using ChatApp.WebAPI.Attributes;
 using ChatApp.WebAPI.Services;
 using Microsoft.AspNetCore.Http;

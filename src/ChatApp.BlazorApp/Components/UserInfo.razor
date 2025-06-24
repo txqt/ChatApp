@@ -11,52 +11,52 @@
 }
 else if (userInfo != null)
 {
-    <MudCard>
-        <MudCardHeader>
-            <MudText Typo="Typo.h5">Account Information</MudText>
-        </MudCardHeader>
-        <MudCardContent>
-            <MudGrid GutterSize="3">
-                <MudItem xs="12" md="3" Class="d-flex justify-center">
-                    @if (!string.IsNullOrEmpty(userInfo.Picture))
-                    {
-                        <MudAvatar Size="Size.Large"
-                                   Alt="Avatar"
-                                   Image="@userInfo.Picture"
-                                   Class="mt-2" />
-                    }
-                    else
-                    {
-                        <MudAvatar Size="Size.Large"
-                                   Icon="@Icons.Material.Filled.Person"
-                                   Class="mt-2" />
-                    }
-                </MudItem>
-                <MudItem xs="12" md="9">
-                    <MudList Dense="true" T="string">
-                        <MudListItem>
-                            <MudText><strong>ID:</strong> @userInfo.Id</MudText>
-                        </MudListItem>
-                        <MudListItem>
-                            <MudText><strong>Full Name:</strong> @userInfo.FullName</MudText>
-                        </MudListItem>
-                        <MudListItem>
-                            <MudText><strong>Email:</strong> @userInfo.Email</MudText>
-                        </MudListItem>
-                        <MudListItem>
-                            <MudText><strong>Role:</strong> @userInfo.Role</MudText>
-                        </MudListItem>
-                        <MudListItem>
-                            <MudText>
-                                <strong>Member Since:</strong>
-                                @userInfo.CreatedAt.ToString("MMM dd, yyyy")
-                            </MudText>
-                        </MudListItem>
-                    </MudList>
-                </MudItem>
-            </MudGrid>
-        </MudCardContent>
-    </MudCard>
+        <MudCard>
+            <MudCardHeader>
+                <MudText Typo="Typo.h5">Account Information</MudText>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudGrid GutterSize="3">
+                    <MudItem xs="12" md="3" Class="d-flex justify-center">
+                        @if (!string.IsNullOrEmpty(userInfo.Picture))
+                        {
+                            <MudAvatar Size="Size.Large"
+                                       Alt="Avatar"
+                                       Image="@userInfo.Picture"
+                                       Class="mt-2" />
+                        }
+                        else
+                        {
+                            <MudAvatar Size="Size.Large"
+                                       Icon="@Icons.Material.Filled.Person"
+                                       Class="mt-2" />
+                        }
+                    </MudItem>
+                    <MudItem xs="12" md="9">
+                        <MudList Dense="true" T="string">
+                            <MudListItem>
+                                <MudText><strong>ID:</strong> @userInfo.Id</MudText>
+                            </MudListItem>
+                            <MudListItem>
+                                <MudText><strong>Full Name:</strong> @userInfo.FullName</MudText>
+                            </MudListItem>
+                            <MudListItem>
+                                <MudText><strong>Email:</strong> @userInfo.Email</MudText>
+                            </MudListItem>
+                            <MudListItem>
+                                <MudText><strong>Role:</strong> @userInfo.Role</MudText>
+                            </MudListItem>
+                            <MudListItem>
+                                <MudText>
+                                    <strong>Member Since:</strong>
+                                    @userInfo.CreatedAt.ToString("MMM dd, yyyy")
+                                </MudText>
+                            </MudListItem>
+                        </MudList>
+                    </MudItem>
+                </MudGrid>
+            </MudCardContent>
+        </MudCard>
 }
 else
 {

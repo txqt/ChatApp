@@ -1,4 +1,4 @@
-﻿using ChatApp.Application.DTOs;
+﻿using ChatApp.Contracts.DTOs;
 using ChatApp.Application.Interfaces;
 using ChatApp.Domain.Entities;
 using Microsoft.AspNetCore.Http;
@@ -10,14 +10,8 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ChatApp.Infrastructure.Services
+namespace ChatApp.Application.Services
 {
-    public interface IUserService
-    {
-        public Task EnsureUserExistsAsync(UserCreateDto dto);
-        Task<ApplicationUser?> GetUserByIdAsync(string auth0Id);
-        Task<ApplicationUser?> GetCurrentUserAsync();
-    }
     public class UserService : IUserService
     {
         private readonly IApplicationDbContext _db;

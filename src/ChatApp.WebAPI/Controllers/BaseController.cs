@@ -1,5 +1,6 @@
-﻿using ChatApp.Domain.Entities;
-using ChatApp.Infrastructure.Services;
+﻿using ChatApp.Application.Interfaces;
+using ChatApp.Domain.Entities;
+
 using ChatApp.WebAPI.Extensions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;

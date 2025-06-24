@@ -1,4 +1,4 @@
-﻿using ChatApp.Application.DTOs;
+﻿using ChatApp.Contracts.DTOs;
 using ChatApp.Domain.Entities;
 using ChatApp.Domain.Enum;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;

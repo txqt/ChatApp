@@ -4,10 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ChatApp.Application.DTOs
+namespace ChatApp.Contracts.DTOs
 {
-    public class CreateDirectChatRequest
+    public class EmailUpdateModel
     {
-        public string UserId { get; set; }
+        public string NewEmail { get; set; }
     }
 }

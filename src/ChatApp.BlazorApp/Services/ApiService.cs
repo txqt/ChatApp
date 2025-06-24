@@ -1,4 +1,4 @@
-﻿using ChatApp.Application.DTOs;
+﻿using ChatApp.Contracts.DTOs;
 using System.Net.Http.Json;
 
 namespace ChatApp.BlazorApp.Services

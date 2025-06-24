@@ -1,6 +1,6 @@
 ﻿using ChatApp.Domain.Enum;
 
-namespace ChatApp.Application.DTOs
+namespace ChatApp.Contracts.DTOs
 {
     public class MessageDto
     {

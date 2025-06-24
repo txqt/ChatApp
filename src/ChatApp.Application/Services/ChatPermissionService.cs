@@ -4,18 +4,8 @@ using ChatApp.Domain.Enum;
 using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
 
-namespace ChatApp.Infrastructure.Services
+namespace ChatApp.Application.Services
 {
-    public interface IChatPermissionService
-    {
-        Task<bool> CanUserPerformAction(string userId, int chatId, ChatPermissions permission);
-        Task<bool> CanUserPerformAction(ApplicationUser user, int chatId, ChatPermissions permission);
-        Task<bool> UpdateRolePermissions(int chatId, ChatMemberRole role, ChatPermissions permissions, string updatedBy);
-        Task<ChatPermissions> GetUserPermissions(string userId, int chatId);
-        Task<ChatPermissions> GetUserPermissions(ApplicationUser user, int chatId);
-        Task<ChatPermissions> GetRolePermissions(int chatId, ChatMemberRole role);
-    }
-
     public class ChatPermissionService : IChatPermissionService
     {
         private readonly IApplicationDbContext _context;

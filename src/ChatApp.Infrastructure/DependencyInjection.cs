@@ -1,6 +1,5 @@
 ﻿using ChatApp.Application.Interfaces;
 using ChatApp.Infrastructure.Data;
-using ChatApp.Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,10 +10,6 @@ namespace ChatApp.Infrastructure
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddScoped<IApplicationDbContext, ApplicationDbContext>();
-            services.AddScoped<IUserService, UserService>();
-            services.AddScoped<IFriendService, FriendService>();
-            services.AddScoped<ISystemPermissionService, SystemPermissionService>();
-            services.AddScoped<IChatPermissionService, ChatPermissionService>();
             return services;
         }
     }

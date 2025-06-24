@@ -2,10 +2,9 @@
 @inject ISnackbar Snackbar
 @inject IChatService ChatService
 
-<MudDialog>
+<MudDialog Style="max-width:600px; width:600px;">
     <DialogContent>
-        <MudContainer Style="max-width: 600px;">
-            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6" Position="Position.Left">
 
                 @* Tab thông tin cơ bản - luôn hiển thị *@
                 <MudTabPanel Text="@(Chat.ChatType == ChatType.Group ? "Thông tin nhóm" : "Thông tin chat")">
@@ -284,7 +283,6 @@
                     </MudStack>
                 </MudTabPanel>
             </MudTabs>
-        </MudContainer>
     </DialogContent>
 
     <DialogActions>

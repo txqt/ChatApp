@@ -4,10 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ChatApp.Application.DTOs
+namespace ChatApp.Contracts.DTOs
 {
-    public class EmailUpdateModel
+    public class SendFriendRequestDto
     {
-        public string NewEmail { get; set; }
+        public string ReceiverId { get; set; }
     }
 }

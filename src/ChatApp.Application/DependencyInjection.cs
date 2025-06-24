@@ -1,4 +1,5 @@
 ﻿using ChatApp.Application.Interfaces;
+using ChatApp.Application.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -13,6 +14,10 @@ namespace ChatApp.Application
     {
         public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
         {
+            services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IFriendService, FriendService>();
+            services.AddScoped<ISystemPermissionService, SystemPermissionService>();
+            services.AddScoped<IChatPermissionService, ChatPermissionService>();
             return services;
         }
     }

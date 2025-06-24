@@ -3,7 +3,7 @@ using ChatApp.Application;
 using ChatApp.Domain.Entities;
 using ChatApp.Infrastructure;
 using ChatApp.Infrastructure.Data;
-using ChatApp.Infrastructure.Services;
+
 using ChatApp.WebAPI.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

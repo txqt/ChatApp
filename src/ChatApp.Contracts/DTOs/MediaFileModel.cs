@@ -1,4 +1,4 @@
-namespace ChatApp.Application.DTOs
+namespace ChatApp.Contracts.DTOs
 {
     public class MediaFileModel
     {

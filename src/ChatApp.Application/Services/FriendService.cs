@@ -1,7 +1,7 @@
-﻿using ChatApp.Application.DTOs;
+﻿using ChatApp.Application.Interfaces;
+using ChatApp.Contracts.DTOs;
 using ChatApp.Domain.Entities;
 using ChatApp.Domain.Enum;
-using ChatApp.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
@@ -11,30 +11,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ChatApp.Infrastructure.Services
+namespace ChatApp.Application.Services
 {
-    // Services/IFriendService.cs
-    public interface IFriendService
-    {
-        Task<List<UserSearchDto>> SearchUsersAsync(string searchTerm, string currentUserId, int pageSize = 20, int page = 1);
-        Task<bool> SendFriendRequestAsync(string requesterId, string receiverId);
-        Task<bool> AcceptFriendRequestAsync(string friendshipId, string currentUserId);
-        Task<bool> DeclineFriendRequestAsync(string friendshipId, string currentUserId);
-        Task<bool> RemoveFriendAsync(string friendId, string currentUserId);
-        Task<List<FriendRequestDto>> GetPendingFriendRequestsAsync(string userId);
-        Task<List<FriendRequestDto>> GetSentFriendRequestsAsync(string userId);
-        Task<List<FriendDto>> GetFriendsAsync(string userId);
-        Task<bool> BlockUserAsync(string blockerId, string blockedId);
-        Task<bool> UnblockUserAsync(string blockerId, string blockedId);
-    }
-
     // Services/FriendService.cs
     public class FriendService : IFriendService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IApplicationDbContext _context;
         private readonly ILogger<FriendService> _logger;
 
-        public FriendService(ApplicationDbContext context, ILogger<FriendService> logger)
+        public FriendService(IApplicationDbContext context, ILogger<FriendService> logger)
         {
             _context = context;
             _logger = logger;
@@ -121,10 +106,6 @@ namespace ChatApp.Infrastructure.Services
                 };
 
                 _context.Friendships.Add(friendship);
-                foreach (var e in _context.ChangeTracker.Entries())
-                    Console.WriteLine($"{e.Entity.GetType().Name}: {e.State}");
-                Debug.Assert(friendship.Requester == null && friendship.Receiver == null);
-
                 await _context.SaveChangesAsync();
                 return true;
             }

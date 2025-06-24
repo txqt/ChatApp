@@ -1,8 +1,8 @@
-﻿using ChatApp.Application.DTOs;
+﻿using ChatApp.Contracts.DTOs;
 using ChatApp.Application.Interfaces;
 using ChatApp.Domain.Entities;
 using ChatApp.Domain.Enum;
-using ChatApp.Infrastructure.Services;
+
 using ChatApp.WebAPI.Attributes;
 using ChatApp.WebAPI.Services;
 using Microsoft.AspNetCore.Mvc;
